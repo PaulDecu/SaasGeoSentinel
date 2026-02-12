@@ -1,0 +1,84 @@
+erDiagram
+    tenants ||--o{ users : "has"
+    tenants ||--o{ risks : "owns"
+    tenants }o--|| offers : "subscribes"
+    users ||--o{ password_reset_tokens : "requests"
+    users ||--o{ refresh_tokens : "has"
+    users ||--o{ risks : "creates"
+    
+    offers {
+        uuid id PK
+        varchar name UK "starter, business, etc."
+        int max_users "nombre max d'utilisateurs"
+        decimal price "prix mensuel"
+        timestamp end_of_sale "date fin commercialisation"
+        timestamp created_at
+        timestamp updated_at
+    }
+    
+    tenants {
+        uuid id PK
+        varchar public_id UK "GL-00001, GL-00002..."
+        varchar company_name
+        varchar contact_email
+        varchar contact_phone
+        uuid offer_id FK
+        timestamp subscription_start
+        timestamp subscription_end
+        jsonb metadata "coordonnées complètes"
+        timestamp created_at
+        timestamp updated_at
+    }
+    
+    users {
+        uuid id PK
+        varchar email UK
+        varchar password_hash
+        enum role "superadmin, admin, gestionnaire, utilisateur"
+        uuid tenant_id FK "NULL pour superadmin"
+        timestamp last_login
+        timestamp created_at
+        timestamp updated_at
+    }
+    
+    password_reset_tokens {
+        uuid id PK
+        uuid user_id FK
+        varchar token UK "hash du token"
+        timestamp expires_at
+        boolean is_used
+        timestamp created_at
+    }
+    
+    refresh_tokens {
+        uuid id PK
+        uuid user_id FK
+        varchar token_hash UK
+        timestamp expires_at
+        boolean is_revoked
+        timestamp created_at
+    }
+    
+    risks {
+        uuid id PK
+        uuid tenant_id FK
+        uuid created_by FK "user_id"
+        varchar title
+        text description
+        enum category "naturel, industriel, sanitaire, etc."
+        enum severity "faible, modéré, élevé, critique"
+        geography location "POINT(lng lat) SRID 4326"
+        jsonb metadata "données complémentaires"
+        timestamp created_at
+        timestamp updated_at
+    }
+    
+    trial_requests {
+        uuid id PK
+        varchar company_name
+        varchar email
+        varchar phone
+        text message
+        enum status "pending, contacted, converted, rejected"
+        timestamp created_at
+    }

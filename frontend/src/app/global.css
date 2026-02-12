@@ -1,0 +1,156 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    @apply antialiased scroll-smooth;
+  }
+  
+  body {
+    /* Fond clair gris bleuté avec grille tech subtile */
+    @apply bg-slate-50 text-slate-900;
+    background-image: 
+      linear-gradient(rgba(6, 182, 212, 0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(6, 182, 212, 0.03) 1px, transparent 1px);
+    background-size: 50px 50px;
+  }
+}
+
+@layer components {
+  /* Cards blanches avec effet néon */
+  .card-premium {
+    @apply bg-white/95 backdrop-blur-sm border-2 border-primary-200 rounded-2xl p-6 
+           shadow-lg hover:shadow-neon-cyan hover:border-primary-400 hover:scale-[1.02]
+           transition-all duration-300;
+  }
+
+  .card-danger {
+    @apply bg-white/95 backdrop-blur-sm border-2 border-danger-200 rounded-2xl p-6 
+           shadow-lg hover:shadow-neon-red hover:border-danger-400 hover:scale-[1.02]
+           transition-all duration-300;
+  }
+
+  .card-success {
+    @apply bg-white/95 backdrop-blur-sm border-2 border-success-200 rounded-2xl p-6 
+           shadow-lg hover:shadow-neon-green hover:border-success-400 hover:scale-[1.02]
+           transition-all duration-300;
+  }
+
+  .card-warning {
+    @apply bg-white/95 backdrop-blur-sm border-2 border-accent-200 rounded-2xl p-6 
+           shadow-lg hover:shadow-neon-orange hover:border-accent-400 hover:scale-[1.02]
+           transition-all duration-300;
+  }
+
+  /* Boutons néon */
+  .btn-neon {
+    @apply relative overflow-hidden bg-gradient-to-r from-primary-500 to-primary-600 text-white font-bold px-6 py-3 rounded-lg
+           shadow-lg hover:shadow-neon-cyan hover:scale-105 
+           transition-all duration-300;
+  }
+
+  .btn-danger-neon {
+    @apply relative overflow-hidden bg-gradient-to-r from-danger-500 to-danger-600 text-white font-bold px-6 py-3 rounded-lg
+           shadow-lg hover:shadow-neon-red hover:scale-105 
+           transition-all duration-300;
+  }
+
+  /* Badge avec glow */
+  .badge-glow {
+    @apply inline-flex items-center px-3 py-1 rounded-full text-xs font-bold
+           animate-pulse-slow;
+  }
+
+  .badge-critical {
+    @apply badge-glow bg-critical-100 text-critical-700 border-2 border-critical-400;
+  }
+
+  .badge-high {
+    @apply badge-glow bg-danger-100 text-danger-700 border-2 border-danger-400;
+  }
+
+  .badge-medium {
+    @apply badge-glow bg-accent-100 text-accent-700 border-2 border-accent-400;
+  }
+
+  .badge-low {
+    @apply badge-glow bg-success-100 text-success-700 border-2 border-success-400;
+  }
+
+  /* Titre avec effet tech */
+  .title-tech {
+    @apply text-3xl font-black tracking-tight;
+    background: linear-gradient(135deg, #0891b2 0%, #9333ea 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  /* Input style tech */
+  .input-tech {
+    @apply bg-white border-2 border-slate-300 text-slate-900 placeholder-slate-400
+           rounded-lg px-4 py-2 
+           focus:border-primary-500 focus:ring-2 focus:ring-primary-400/50 
+           transition-all duration-300;
+  }
+
+  /* Status indicators avec point clignotant */
+  .status-active {
+    @apply flex items-center gap-2;
+  }
+
+  .status-active::before {
+    content: '';
+    @apply w-2 h-2 rounded-full bg-success-500 animate-pulse;
+  }
+
+  .status-alert {
+    @apply flex items-center gap-2;
+  }
+
+  .status-alert::before {
+    content: '';
+    @apply w-2 h-2 rounded-full bg-danger-500 animate-pulse;
+  }
+
+  .status-warning {
+    @apply flex items-center gap-2;
+  }
+
+  .status-warning::before {
+    content: '';
+    @apply w-2 h-2 rounded-full bg-accent-500 animate-pulse;
+  }
+
+  /* Grille tech pour arrière-plans */
+  .grid-tech {
+    background-image: 
+      linear-gradient(rgba(6, 182, 212, 0.05) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(6, 182, 212, 0.05) 1px, transparent 1px);
+    background-size: 20px 20px;
+  }
+}
+
+/* Scrollbar personnalisée */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-slate-100;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-primary-500 rounded-full;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-primary-600;
+}
+
+/* Selection */
+::selection {
+  @apply bg-primary-500 text-white;
+}

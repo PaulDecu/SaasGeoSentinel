@@ -1,0 +1,307 @@
+'use client';
+
+import { useState, useEffect } from 'react';
+import { AuthLayout } from '@/components/layouts/AuthLayout';
+import { Card, Spinner, Button } from '@/components/ui';
+import { useRequireAuth } from '@/lib/hooks/useAuth';
+import { UserRole } from '@/types';
+import { tenantsApi } from '@/lib/api/resources';
+import { getErrorMessage } from '@/lib/api/client';
+import toast from 'react-hot-toast';
+
+export default function MyOfferPage() {
+  const { user } = useRequireAuth([UserRole.ADMIN]);
+  
+  const [tenant, setTenant] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    loadTenantData();
+  }, []);
+
+  const loadTenantData = async () => {
+    if (!user?.tenantId) return;
+    
+    setIsLoading(true);
+    try {
+      const data = await tenantsApi.getOne(user.tenantId);
+      setTenant(data);
+    } catch (error) {
+      toast.error(getErrorMessage(error));
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleRenew = () => {
+    toast('Fonctionnalité de renouvellement en cours de développement', {
+      icon: '🚧',
+    });
+  };
+
+  if (isLoading) {
+    return (
+      <AuthLayout requiredRoles={[UserRole.ADMIN]}>
+        <div className="flex justify-center items-center min-h-[400px]">
+          <Spinner size="lg" />
+        </div>
+      </AuthLayout>
+    );
+  }
+
+  if (!tenant || !tenant.offer) {
+    return (
+      <AuthLayout requiredRoles={[UserRole.ADMIN]}>
+        <div className="text-center py-12">
+          <p className="text-slate-600">Aucune offre associée à votre compte.</p>
+        </div>
+      </AuthLayout>
+    );
+  }
+
+  const daysRemaining = tenant.subscriptionEnd 
+    ? Math.ceil((new Date(tenant.subscriptionEnd).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))
+    : null;
+
+  const isExpiringSoon = daysRemaining !== null && daysRemaining <= 7;
+  const isExpired = daysRemaining !== null && daysRemaining < 0;
+
+  return (
+    <AuthLayout requiredRoles={[UserRole.ADMIN]}>
+      <div className="max-w-4xl mx-auto space-y-8">
+        {/* Header */}
+        <div>
+          <h1 className="title-tech text-4xl mb-2">Mon Offre</h1>
+          <p className="text-slate-600">
+            Détails de votre abonnement et gestion du renouvellement
+          </p>
+        </div>
+
+        {/* Alerte expiration */}
+        {isExpired && (
+          <div className="card-danger">
+            <div className="flex items-start gap-4">
+              <div className="text-4xl">⚠️</div>
+              <div className="flex-1">
+                <h3 className="text-xl font-bold text-danger-700 mb-2">
+                  Abonnement expiré
+                </h3>
+                <p className="text-slate-700 mb-4">
+                  Votre abonnement a expiré le {new Date(tenant.subscriptionEnd).toLocaleDateString('fr-FR')}. 
+                  Renouvelez dès maintenant pour continuer à utiliser nos services.
+                </p>
+                <Button onClick={handleRenew} className="btn-danger-neon">
+                  🔄 Renouveler maintenant
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {isExpiringSoon && !isExpired && (
+          <div className="card-warning">
+            <div className="flex items-start gap-4">
+              <div className="text-4xl">⏰</div>
+              <div className="flex-1">
+                <h3 className="text-xl font-bold text-accent-700 mb-2">
+                  Expiration proche
+                </h3>
+                <p className="text-slate-700 mb-2">
+                  Votre abonnement expire dans <strong>{daysRemaining} jour{daysRemaining > 1 ? 's' : ''}</strong>.
+                </p>
+                <p className="text-sm text-slate-600">
+                  Date d'expiration : {new Date(tenant.subscriptionEnd).toLocaleDateString('fr-FR')}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Informations entreprise */}
+        <Card className="card-premium">
+          <div className="flex items-start justify-between mb-6">
+            <div>
+              <h2 className="text-2xl font-bold text-slate-900 mb-1">
+                {tenant.companyName}
+              </h2>
+              <p className="text-sm text-slate-600">
+                ID Client : <span className="font-mono font-bold text-primary-600">{tenant.publicId}</span>
+              </p>
+            </div>
+            {!isExpired && daysRemaining !== null && (
+              <div className={`px-4 py-2 rounded-lg font-bold text-sm ${
+                isExpiringSoon 
+                  ? 'bg-accent-100 text-accent-700 border-2 border-accent-400'
+                  : 'bg-success-100 text-success-700 border-2 border-success-400'
+              }`}>
+                {isExpiringSoon ? '⏰' : '✅'} {daysRemaining} jour{daysRemaining > 1 ? 's' : ''} restant{daysRemaining > 1 ? 's' : ''}
+              </div>
+            )}
+          </div>
+
+          <div className="grid grid-cols-2 gap-4 text-sm">
+            <div>
+              <p className="text-slate-600 mb-1">Email de contact</p>
+              <p className="font-medium text-slate-900">{tenant.contactEmail}</p>
+            </div>
+            {tenant.contactPhone && (
+              <div>
+                <p className="text-slate-600 mb-1">Téléphone</p>
+                <p className="font-medium text-slate-900">{tenant.contactPhone}</p>
+              </div>
+            )}
+          </div>
+        </Card>
+
+        {/* Détails de l'offre */}
+        <div className="grid md:grid-cols-2 gap-6">
+          {/* Carte offre */}
+          <Card className="card-premium">
+            <div className="flex items-start justify-between mb-4">
+              <div>
+                <p className="text-sm text-slate-600 uppercase tracking-wide mb-1">Offre actuelle</p>
+                <h3 className="text-2xl font-black text-primary-600">
+                  {tenant.offer.name}
+                </h3>
+              </div>
+              <div className="text-4xl">📦</div>
+            </div>
+
+            <div className="space-y-3">
+              <div className="flex justify-between items-center py-2 border-b border-slate-200">
+                <span className="text-slate-600">Prix mensuel</span>
+                <span className="text-xl font-bold text-slate-900">
+                  {tenant.offer.price.toFixed(2)} €<span className="text-sm font-normal text-slate-600">/mois</span>
+                </span>
+              </div>
+
+              <div className="flex justify-between items-center py-2 border-b border-slate-200">
+                <span className="text-slate-600">Utilisateurs max</span>
+                <span className="font-bold text-slate-900">
+                  {tenant.offer.maxUsers} utilisateur{tenant.offer.maxUsers > 1 ? 's' : ''}
+                </span>
+              </div>
+
+              {tenant.offer.endOfSale && (
+                <div className="mt-4 p-3 bg-accent-50 border border-accent-200 rounded-lg">
+                  <p className="text-xs text-accent-700 font-medium">
+                    ⚠️ Offre en fin de commercialisation
+                  </p>
+                  <p className="text-xs text-slate-600 mt-1">
+                    Plus disponible à la vente depuis le {new Date(tenant.offer.endOfSale).toLocaleDateString('fr-FR')}
+                  </p>
+                </div>
+              )}
+            </div>
+          </Card>
+
+          {/* Carte abonnement */}
+          <Card className="card-premium">
+            <div className="flex items-start justify-between mb-4">
+              <div>
+                <p className="text-sm text-slate-600 uppercase tracking-wide mb-1">Abonnement</p>
+                <h3 className="text-2xl font-black text-critical-600">
+                  Détails
+                </h3>
+              </div>
+              <div className="text-4xl">📅</div>
+            </div>
+
+            <div className="space-y-3">
+              <div className="py-2">
+                <p className="text-sm text-slate-600 mb-1">Date de début</p>
+                <p className="font-bold text-slate-900">
+                  {new Date(tenant.subscriptionStart).toLocaleDateString('fr-FR', {
+                    day: 'numeric',
+                    month: 'long',
+                    year: 'numeric'
+                  })}
+                </p>
+              </div>
+
+              {tenant.subscriptionEnd && (
+                <div className="py-2">
+                  <p className="text-sm text-slate-600 mb-1">Date d'expiration</p>
+                  <p className={`font-bold ${isExpired ? 'text-danger-600' : isExpiringSoon ? 'text-accent-600' : 'text-success-600'}`}>
+                    {new Date(tenant.subscriptionEnd).toLocaleDateString('fr-FR', {
+                      day: 'numeric',
+                      month: 'long',
+                      year: 'numeric'
+                    })}
+                  </p>
+                </div>
+              )}
+
+              <div className="py-2">
+                <p className="text-sm text-slate-600 mb-1">Statut</p>
+                <div className="flex items-center gap-2">
+                  {isExpired ? (
+                    <>
+                      <div className="w-3 h-3 rounded-full bg-danger-500 animate-pulse"></div>
+                      <span className="font-bold text-danger-600">Expiré</span>
+                    </>
+                  ) : isExpiringSoon ? (
+                    <>
+                      <div className="w-3 h-3 rounded-full bg-accent-500 animate-pulse"></div>
+                      <span className="font-bold text-accent-600">Expire bientôt</span>
+                    </>
+                  ) : (
+                    <>
+                      <div className="w-3 h-3 rounded-full bg-success-500 animate-pulse"></div>
+                      <span className="font-bold text-success-600">Actif</span>
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
+          </Card>
+        </div>
+
+        {/* Actions */}
+        <Card className="card-premium">
+          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+            <div>
+              <h3 className="text-lg font-bold text-slate-900 mb-1">
+                Renouvellement de l'abonnement
+              </h3>
+              <p className="text-sm text-slate-600">
+                Prolongez votre abonnement pour le mois suivant et continuez à bénéficier de nos services.
+              </p>
+            </div>
+            <Button 
+              onClick={handleRenew}
+              className="btn-neon whitespace-nowrap"
+            >
+              🔄 Renouveler ma mensualité
+            </Button>
+          </div>
+        </Card>
+
+        {/* Informations complémentaires */}
+        <div className="bg-primary-50 border-2 border-primary-200 rounded-xl p-6">
+          <h3 className="font-bold text-primary-900 mb-3 flex items-center gap-2">
+            <span>💡</span> Informations importantes
+          </h3>
+          <ul className="space-y-2 text-sm text-slate-700">
+            <li className="flex items-start gap-2">
+              <span className="text-primary-600 font-bold">•</span>
+              <span>Le renouvellement prolonge votre abonnement pour 30 jours supplémentaires</span>
+            </li>
+            <li className="flex items-start gap-2">
+              <span className="text-primary-600 font-bold">•</span>
+              <span>Vous pouvez renouveler à tout moment, même avant l'expiration</span>
+            </li>
+            <li className="flex items-start gap-2">
+              <span className="text-primary-600 font-bold">•</span>
+              <span>Le montant débité sera de <strong>{tenant.offer.price.toFixed(2)} €</strong></span>
+            </li>
+            <li className="flex items-start gap-2">
+              <span className="text-primary-600 font-bold">•</span>
+              <span>Pour toute question, contactez notre support technique</span>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </AuthLayout>
+  );
+}

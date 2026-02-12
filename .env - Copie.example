@@ -1,0 +1,13 @@
+API_PORT=4000
+PG_HOST=localhost
+PG_PORT=5432
+PG_DB=gl_risk
+PG_USER=gl_admin
+PG_PASSWORD=gl_pwd
+REDIS_URL=redis://localhost:6379
+SMTP_HOST=localhost
+SMTP_PORT=1025
+MINIO_ENDPOINT=http://localhost:9000
+MINIO_ACCESS_KEY=minioadmin
+MINIO_SECRET_KEY=minioadmin
+MINIO_BUCKET=gl-risk-assets
