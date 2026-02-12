@@ -1,5 +1,5 @@
 // src/system-settings/dto/system-settings.dto.ts
-import { IsEnum, IsInt, Min, Max, IsString, IsNotEmpty } from 'class-validator';
+import { IsEnum, IsInt, Min, Max, IsString, IsOptional, MaxLength } from 'class-validator';
 import { TourneeType } from '../entities/system-settings.entity';
 
 export class UpdateSystemSettingDto {
@@ -24,6 +24,13 @@ export class UpdateSystemSettingDto {
   alertRadiusMeters: number;
 }
 
+export class UpdateDashboardMessageDto {
+  @IsOptional()
+  @IsString()
+  @MaxLength(500, { message: 'Le message ne peut pas dépasser 500 caractères' })
+  dashboardMessage?: string | null;
+}
+
 export class SystemSettingResponseDto {
   id: string;
   tourneeType: TourneeType;
@@ -32,6 +39,7 @@ export class SystemSettingResponseDto {
   positionTestDelaySeconds: number;
   riskLoadZoneKm: number;
   alertRadiusMeters: number;
+  dashboardMessage: string | null;
   createdAt: Date;
   updatedAt: Date;
 }

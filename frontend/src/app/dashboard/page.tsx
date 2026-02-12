@@ -1,13 +1,32 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import { useRequireAuth } from '@/lib/hooks/useAuth';
 import { AuthLayout } from '@/components/layouts/AuthLayout';
 import { Card } from '@/components/ui';
 import { UserRole } from '@/types';
+import { systemSettingsApi } from '@/lib/api/system-settings';
 import Link from 'next/link';
 
 export default function DashboardPage() {
   const { user } = useRequireAuth();
+  const [dashboardMessage, setDashboardMessage] = useState<string | null>(null);
+  const [loadingMessage, setLoadingMessage] = useState(true);
+
+  useEffect(() => {
+    loadDashboardMessage();
+  }, []);
+
+  const loadDashboardMessage = async () => {
+    try {
+      const response = await systemSettingsApi.getDashboardMessage();
+      setDashboardMessage(response.dashboardMessage);
+    } catch (error) {
+      console.error('Erreur chargement message dashboard:', error);
+    } finally {
+      setLoadingMessage(false);
+    }
+  };
 
   if (!user) return null;
 
@@ -24,6 +43,21 @@ export default function DashboardPage() {
             {user.tenant && <> • <span className="font-bold text-slate-900">{user.tenant.companyName}</span></>}
           </p>
         </div>
+
+        {/* ✅ Message Dashboard Global */}
+        {dashboardMessage && !loadingMessage && (
+          <div className="bg-gradient-to-r from-amber-400 to-orange-500 rounded-xl shadow-lg p-6 text-white">
+            <div className="flex items-start gap-4">
+              <div className="text-4xl">📢</div>
+              <div className="flex-1">
+                <h3 className="text-xl font-bold mb-2">Message important</h3>
+                <p className="text-white/90 text-lg leading-relaxed whitespace-pre-wrap">
+                  {dashboardMessage}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Quick Stats */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -106,14 +140,14 @@ export default function DashboardPage() {
           )}
         </div>
 
-        {/* ✅ Card Paramètres Système - SUPERADMIN uniquement - EN DEHORS DE LA GRILLE */}
+        {/* Card Paramètres Système - SUPERADMIN uniquement */}
         {user.role === UserRole.SUPERADMIN && (
           <div className="bg-gradient-to-br from-purple-500 to-purple-700 rounded-xl shadow-lg p-6 text-white hover:shadow-2xl transition-shadow">
             <div className="flex items-center justify-between mb-4">
               <div>
                 <h2 className="text-2xl font-bold">⚙️ Paramètres Système</h2>
                 <p className="text-purple-100 text-sm mt-1">
-                  Configuration géolocalisation
+                  Configuration géolocalisation + Message dashboard
                 </p>
               </div>
             </div>
@@ -126,7 +160,7 @@ export default function DashboardPage() {
                 <span className="text-2xl">🚶🚴🚗</span>
                 <div>
                   <div className="font-semibold">Gérer les paramètres</div>
-                  <div className="text-xs text-purple-100">Tournées • Délais • Alertes</div>
+                  <div className="text-xs text-purple-100">Tournées • Délais • Alertes • Message</div>
                 </div>
               </div>
               <span className="text-2xl">→</span>

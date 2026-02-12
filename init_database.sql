@@ -347,3 +347,23 @@ COMMENT ON COLUMN system_settings.api_call_delay_minutes IS 'Délai d''appel à 
 COMMENT ON COLUMN system_settings.position_test_delay_seconds IS 'Délai de test de position en secondes';
 COMMENT ON COLUMN system_settings.risk_load_zone_km IS 'Zone de chargement des risques en kilomètres';
 COMMENT ON COLUMN system_settings.alert_radius_meters IS 'Rayon d''alerte en mètres';
+
+-- Migration: Ajouter la colonne dashboard_message
+-- Fichier: backend/migrations/add-dashboard-message.sql
+
+-- Ajouter la colonne dashboard_message
+ALTER TABLE system_settings
+ADD COLUMN IF NOT EXISTS dashboard_message TEXT NULL;
+
+-- Ajouter un commentaire
+COMMENT ON COLUMN system_settings.dashboard_message IS 'Message global affiché sur le dashboard de tous les utilisateurs';
+
+-- Vérifier
+SELECT 
+  column_name, 
+  data_type, 
+  is_nullable,
+  column_default
+FROM information_schema.columns
+WHERE table_name = 'system_settings'
+  AND column_name = 'dashboard_message';

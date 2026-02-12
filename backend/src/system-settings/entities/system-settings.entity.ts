@@ -22,44 +22,52 @@ export class SystemSetting {
     type: 'enum',
     enum: TourneeType,
     unique: true,
-    name: 'tournee_type', // ✅ Mapping vers tournee_type en base
+    name: 'tournee_type',
   })
   tourneeType: TourneeType;
 
   @Column({
     type: 'varchar',
     length: 100,
-    name: 'label', // ✅ Déjà en minuscule
+    name: 'label',
   })
   label: string;
 
   @Column({
     type: 'integer',
     comment: 'Délai d\'appel à l\'API nearby en minutes',
-    name: 'api_call_delay_minutes', // ✅ Mapping vers api_call_delay_minutes
+    name: 'api_call_delay_minutes',
   })
   apiCallDelayMinutes: number;
 
   @Column({
     type: 'integer',
     comment: 'Délai de test de position en secondes',
-    name: 'position_test_delay_seconds', // ✅ Mapping vers position_test_delay_seconds
+    name: 'position_test_delay_seconds',
   })
   positionTestDelaySeconds: number;
 
   @Column({
     type: 'integer',
     comment: 'Zone de chargement des risques en kilomètres',
-    name: 'risk_load_zone_km', // ✅ Mapping vers risk_load_zone_km
+    name: 'risk_load_zone_km',
   })
   riskLoadZoneKm: number;
 
   @Column({
     type: 'integer',
     comment: 'Rayon d\'alerte en mètres',
-    name: 'alert_radius_meters', // ✅ Mapping vers alert_radius_meters
+    name: 'alert_radius_meters',
   })
   alertRadiusMeters: number;
+
+  @Column({
+    type: 'text',
+    nullable: true,
+    name: 'dashboard_message',
+    comment: 'Message global affiché sur le dashboard de tous les utilisateurs',
+  })
+  dashboardMessage: string | null;
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;

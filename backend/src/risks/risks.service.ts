@@ -208,6 +208,38 @@ export class RisksService {
     });
   }
 
+  // ✅ NOUVEAU: Suppression en masse
+  async bulkDelete(ids: string[], user: User): Promise<{ success: string[]; failed: string[] }> {
+    const success: string[] = [];
+    const failed: string[] = [];
+
+    for (const id of ids) {
+      try {
+        await this.remove(id, user);
+        success.push(id);
+      } catch (error) {
+        console.error(`Échec suppression risque ${id}:`, error.message);
+        failed.push(id);
+      }
+    }
+
+    // Audit log
+    await this.auditService.log({
+      action: 'RISK_BULK_DELETE',
+      userId: user.id,
+      tenantId: user.tenantId,
+      details: {
+        total: ids.length,
+        success: success.length,
+        failed: failed.length,
+        successIds: success,
+        failedIds: failed,
+      },
+    });
+
+    return { success, failed };
+  }
+
   async findNearby(query: FindNearbyRisksDto, user: User): Promise<Risk[]> {
     const { lat, lng, radius_km = 10, limit = 200 } = query;
     const radiusMeters = radius_km * 1000;
@@ -326,7 +358,7 @@ export class RisksService {
       id: row.id,
       tenantId: row.tenant_id,
       createdByUserId: row.created_by,
-      creatorEmail: row.creator_email, // <-- Récupère l'alias défini dans la requête SQL
+      creatorEmail: row.creator_email,
       title: row.title,
       description: row.description,
       category: row.category,
@@ -339,7 +371,6 @@ export class RisksService {
       longitude: parseFloat(row.longitude),
       distance: row.distance ? parseFloat(row.distance) : undefined,
     } as Risk;
-
   }
 
   // Pour ETag support

@@ -13,6 +13,11 @@ export default function SystemSettingsPage() {
   const [editMode, setEditMode] = useState<string | null>(null);
   const [editValues, setEditValues] = useState<Partial<UpdateSystemSettingDto>>({});
   const [error, setError] = useState<string | null>(null);
+  
+  // ✅ État pour le message du dashboard
+  const [dashboardMessage, setDashboardMessage] = useState<string>('');
+  const [editingMessage, setEditingMessage] = useState(false);
+  const [savingMessage, setSavingMessage] = useState(false);
 
   useEffect(() => {
     loadSettings();
@@ -23,6 +28,11 @@ export default function SystemSettingsPage() {
       setError(null);
       const data = await systemSettingsApi.getAll();
       setSettings(data);
+      
+      // Charger le message du dashboard
+      if (data.length > 0 && data[0].dashboardMessage) {
+        setDashboardMessage(data[0].dashboardMessage);
+      }
     } catch (error: any) {
       console.error('Erreur:', error);
       
@@ -66,6 +76,23 @@ export default function SystemSettingsPage() {
       setError(error.response?.data?.message || 'Erreur lors de la sauvegarde');
     } finally {
       setSaving(null);
+    }
+  };
+
+  // ✅ Sauvegarder le message du dashboard
+  const saveDashboardMessage = async () => {
+    setSavingMessage(true);
+    setError(null);
+    
+    try {
+      await systemSettingsApi.updateDashboardMessage(dashboardMessage || null);
+      setEditingMessage(false);
+      await loadSettings();
+    } catch (error: any) {
+      console.error('Erreur:', error);
+      setError(error.response?.data?.message || 'Erreur lors de la sauvegarde du message');
+    } finally {
+      setSavingMessage(false);
     }
   };
 
@@ -120,6 +147,71 @@ export default function SystemSettingsPage() {
           </div>
         </div>
       )}
+
+      {/* ✅ NOUVEAU: Section Message Dashboard */}
+      <div className="bg-gradient-to-r from-purple-500 to-purple-700 rounded-lg shadow-md p-6 mb-6 text-white">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h2 className="text-2xl font-bold flex items-center gap-2">
+              📢 Message Dashboard Global
+            </h2>
+            <p className="text-purple-100 text-sm mt-1">
+              Ce message sera affiché sur le dashboard de tous les utilisateurs
+            </p>
+          </div>
+          {editingMessage ? (
+            <div className="flex gap-2">
+              <button
+                onClick={saveDashboardMessage}
+                disabled={savingMessage}
+                className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg font-semibold disabled:opacity-50"
+              >
+                {savingMessage ? 'Sauvegarde...' : '✓ Sauvegarder'}
+              </button>
+              <button
+                onClick={() => {
+                  setEditingMessage(false);
+                  setDashboardMessage(settings[0]?.dashboardMessage || '');
+                }}
+                disabled={savingMessage}
+                className="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-lg font-semibold"
+              >
+                ✕ Annuler
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={() => setEditingMessage(true)}
+              className="bg-white text-purple-600 hover:bg-purple-50 px-4 py-2 rounded-lg font-semibold"
+            >
+              ✏️ Modifier
+            </button>
+          )}
+        </div>
+
+        <div className="bg-white/10 rounded-lg p-4">
+          {editingMessage ? (
+            <textarea
+              value={dashboardMessage}
+              onChange={(e) => setDashboardMessage(e.target.value)}
+              placeholder="Entrez un message pour tous les utilisateurs (laissez vide pour ne rien afficher)"
+              className="w-full px-3 py-2 border border-purple-300 rounded-md focus:ring-2 focus:ring-purple-500 text-gray-900 min-h-[100px]"
+              maxLength={500}
+            />
+          ) : (
+            <div className="text-white">
+              {dashboardMessage ? (
+                <p className="text-lg">{dashboardMessage}</p>
+              ) : (
+                <p className="text-purple-200 italic">Aucun message configuré</p>
+              )}
+            </div>
+          )}
+          <p className="text-purple-100 text-xs mt-2">
+            {dashboardMessage.length} / 500 caractères
+          </p>
+        </div>
+      </div>
 
       {/* Info Card */}
       <div className="bg-blue-50 border-l-4 border-blue-500 p-4 mb-6">
@@ -311,6 +403,10 @@ export default function SystemSettingsPage() {
           <div>
             <strong>Rayon d'alerte (10-1000 m) :</strong> Distance à laquelle une notification
             est envoyée à l'utilisateur lorsqu'il approche d'un risque.
+          </div>
+          <div>
+            <strong>Message Dashboard :</strong> Message global affiché sur le dashboard de tous
+            les utilisateurs (maximum 500 caractères).
           </div>
         </div>
       </div>

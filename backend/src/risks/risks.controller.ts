@@ -33,6 +33,16 @@ export class RisksController {
     return this.risksService.create(createRiskDto, user);
   }
 
+  // ✅ IMPORTANT: Route bulk-delete AVANT :id
+  @Post('bulk-delete')
+  @Roles(UserRole.SUPERADMIN, UserRole.ADMIN, UserRole.GESTIONNAIRE, UserRole.UTILISATEUR)
+  async bulkDelete(
+    @Body('ids') ids: string[],
+    @CurrentUser() user: User,
+  ): Promise<{ success: string[]; failed: string[] }> {
+    return this.risksService.bulkDelete(ids, user);
+  }
+
   @Get()
   @Roles(UserRole.SUPERADMIN, UserRole.ADMIN, UserRole.GESTIONNAIRE, UserRole.UTILISATEUR)
   findAll(@CurrentUser() user: User) {

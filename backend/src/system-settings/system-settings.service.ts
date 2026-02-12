@@ -3,7 +3,7 @@ import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/commo
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { SystemSetting, TourneeType } from './entities/system-settings.entity';
-import { UpdateSystemSettingDto } from './dto/system-settings.dto';
+import { UpdateSystemSettingDto, UpdateDashboardMessageDto } from './dto/system-settings.dto';
 import { User } from '../users/entities/user.entity';
 import { UserRole } from '../users/entities/user-role.enum';
 
@@ -15,7 +15,6 @@ export class SystemSettingsService {
   ) {}
 
   async onModuleInit() {
-    // Initialiser les paramètres par défaut au démarrage
     await this.initializeDefaultSettings();
   }
 
@@ -28,6 +27,7 @@ export class SystemSettingsService {
         positionTestDelaySeconds: 30,
         riskLoadZoneKm: 5,
         alertRadiusMeters: 60,
+        dashboardMessage: null,
       },
       {
         tourneeType: TourneeType.VELO,
@@ -36,6 +36,7 @@ export class SystemSettingsService {
         positionTestDelaySeconds: 20,
         riskLoadZoneKm: 10,
         alertRadiusMeters: 100,
+        dashboardMessage: null,
       },
       {
         tourneeType: TourneeType.VOITURE,
@@ -44,6 +45,7 @@ export class SystemSettingsService {
         positionTestDelaySeconds: 10,
         riskLoadZoneKm: 10,
         alertRadiusMeters: 250,
+        dashboardMessage: null,
       },
     ];
 
@@ -59,7 +61,6 @@ export class SystemSettingsService {
   }
 
   async findAll(user: User): Promise<SystemSetting[]> {
-    // Seul le superadmin peut voir les paramètres système
     if (user.role !== UserRole.SUPERADMIN) {
       throw new ForbiddenException('Accès réservé au superadmin');
     }
@@ -95,20 +96,52 @@ export class SystemSettingsService {
     }
 
     const setting = await this.findOne(id, user);
-
     Object.assign(setting, updateDto);
-
     return this.systemSettingRepository.save(setting);
   }
 
-  // Méthode publique pour que les apps mobiles puissent récupérer les paramètres
+  // ✅ CORRECTION: Mettre à jour le message du dashboard sur TOUS les settings
+  async updateDashboardMessage(
+    updateDto: UpdateDashboardMessageDto,
+    user: User,
+  ): Promise<{ message: string; dashboardMessage: string | null }> {
+    if (user.role !== UserRole.SUPERADMIN) {
+      throw new ForbiddenException('Accès réservé au superadmin');
+    }
+
+    // ✅ Récupérer tous les settings et les mettre à jour un par un
+    const allSettings = await this.systemSettingRepository.find();
+    
+    for (const setting of allSettings) {
+      setting.dashboardMessage = updateDto.dashboardMessage || null;
+      await this.systemSettingRepository.save(setting);
+    }
+
+    return {
+      message: 'Message du dashboard mis à jour',
+      dashboardMessage: updateDto.dashboardMessage || null,
+    };
+  }
+
+  // Récupérer le message du dashboard (route publique)
+  async getDashboardMessage(): Promise<{ dashboardMessage: string | null }> {
+    // Récupérer le message depuis n'importe quel setting (ils ont tous le même)
+    const setting = await this.systemSettingRepository.findOne({
+      where: {},
+      order: { tourneeType: 'ASC' },
+    });
+
+    return {
+      dashboardMessage: setting?.dashboardMessage || null,
+    };
+  }
+
   async getSettingsByType(tourneeType: TourneeType): Promise<SystemSetting | null> {
     return this.systemSettingRepository.findOne({
       where: { tourneeType },
     });
   }
 
-  // Méthode publique pour tous les utilisateurs
   async getAllSettingsPublic(): Promise<SystemSetting[]> {
     return this.systemSettingRepository.find({
       order: { tourneeType: 'ASC' },
