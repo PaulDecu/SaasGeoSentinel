@@ -8,6 +8,7 @@ import { CreateTenantDto, UpdateTenantDto, CreateTenantAdminDto } from './dto/te
 import { AuditService } from '../audit/audit.service';
 import * as bcrypt from 'bcrypt';
 import { UserRole } from '../users/entities/user-role.enum';
+import { Subscription } from '../subscriptions/entities/subscription.entity';
 
 @Injectable()
 export class TenantsService {
@@ -19,6 +20,8 @@ export class TenantsService {
     @InjectRepository(Offer)
     private readonly offerRepository: Repository<Offer>,
     private readonly auditService: AuditService,
+    @InjectRepository(Subscription)  // 👈 NOUVEAU
+    private subscriptionRepository: Repository<Subscription>,
   ) {}
 
   async create(createTenantDto: CreateTenantDto, createdBy: string): Promise<Tenant> {
@@ -36,10 +39,12 @@ export class TenantsService {
       throw new BadRequestException('Cette offre n\'est plus disponible à la vente');
     }
 
-    // ✅ Calculer la date de fin d'abonnement : aujourd'hui + 30 jours
+// ✅ CORRECTION : Calculer subscriptionEnd en utilisant trialPeriodDays de l'offre
     const subscriptionStart = new Date();
     const subscriptionEnd = new Date();
-    subscriptionEnd.setDate(subscriptionEnd.getDate() + 30);
+    const daysToAdd = offer.trialPeriodDays || 30;  // Utilise la durée de l'offre
+    subscriptionEnd.setDate(subscriptionEnd.getDate() + daysToAdd);
+
 
     // Créer le tenant avec les dates d'abonnement
     const tenant = this.tenantRepository.create({
@@ -53,6 +58,29 @@ export class TenantsService {
     });
 
     const savedTenant = await this.tenantRepository.save(tenant);
+
+    // Calculer le nombre de jours souscrits
+    const daysSubscribed = Math.ceil(
+      (subscriptionEnd.getTime() - subscriptionStart.getTime()) / (1000 * 60 * 60 * 24)
+    );
+     
+    const subscription = this.subscriptionRepository.create({
+      tenantId: savedTenant.id,
+      offerId: offer.id,
+      offerName: offer.name,
+      paymentAmount: offer.price,
+      paymentMethod: 'non_specifie', // Mode non spécifié pour création initiale
+      paymentDate: new Date(),
+      subscriptionStartDate: subscriptionStart,
+      subscriptionEndDate: subscriptionEnd,
+      daysSubscribed,
+      metadata: {
+        createdBy: 'superadmin',
+        initialSubscription: true,
+      },
+    });
+
+    await this.subscriptionRepository.save(subscription);
 
     // Log d'audit
     await this.auditService.log({

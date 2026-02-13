@@ -22,6 +22,9 @@ export class Offer {
   @Column({ type: 'decimal', precision: 10, scale: 2 })
   price: number;
 
+  @Column({ name: 'trial_period_days', type: 'int', default: 30 })
+  trialPeriodDays: number;
+
   @Column({ name: 'end_of_sale', type: 'timestamp', nullable: true })
   endOfSale: Date | null;
 

@@ -39,6 +39,7 @@ export interface Offer {
   name: string;
   maxUsers: number;
   price: number;
+  trialPeriodDays: number;
   endOfSale: string | null;
   createdAt: string;
   updatedAt: string;
@@ -107,4 +108,39 @@ export interface PaginatedResponse<T> {
   total: number;
   page: number;
   limit: number;
+}
+
+// ============================================
+// Types pour les Abonnements (Subscriptions)
+// ============================================
+
+export interface Subscription {
+  id: string;
+  tenantId: string;
+  paymentDate: string;
+  subscriptionStartDate: string;
+  subscriptionEndDate: string;
+  paymentMethod: string;
+  paymentAmount: number;
+  offerName: string;
+  offerId: string;
+  daysSubscribed: number;
+  metadata: Record<string, any>;
+  createdAt: string;
+  updatedAt: string;
+  offer?: Offer;
+}
+
+export interface SubscriptionStats {
+  totalSubscriptions: number;
+  totalAmountPaid: number;
+  totalDaysSubscribed: number;
+  hasActiveSubscription: boolean;
+  activeSubscription: Subscription | null;
+}
+
+export interface RenewSubscriptionRequest {
+  offerId: string;
+  paymentMethod?: string;
+  metadata?: Record<string, any>;
 }

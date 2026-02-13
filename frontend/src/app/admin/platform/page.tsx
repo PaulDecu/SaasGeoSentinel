@@ -6,7 +6,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import toast from 'react-hot-toast';
 import { AuthLayout } from '@/components/layouts/AuthLayout';
 import { Button, Input, Card, Spinner } from '@/components/ui';
-import { createOfferSchema, createTenantSchema, createTenantAdminSchema, updateTenantSchema } from '@/lib/validations/schemas';
+import { createOfferSchema, createTenantSchema, createTenantAdminSchema, updateTenantSchema, updateOfferSchema } from '@/lib/validations/schemas';
 import { useRequireAuth } from '@/lib/hooks/useAuth';
 import { UserRole, type Offer, type Tenant } from '@/types';
 import { offersApi, tenantsApi } from '@/lib/api/resources';
@@ -23,6 +23,7 @@ export default function AdminPlatformPage() {
   const [showTenantForm, setShowTenantForm] = useState(false);
   const [selectedTenant, setSelectedTenant] = useState<string | null>(null);
   const [editingTenant, setEditingTenant] = useState<Tenant | null>(null);
+  const [editingOffer, setEditingOffer] = useState<Offer | null>(null);
 
   const offerForm = useForm({
     resolver: zodResolver(createOfferSchema),
@@ -38,6 +39,10 @@ export default function AdminPlatformPage() {
 
   const editTenantForm = useForm({
     resolver: zodResolver(updateTenantSchema),
+  });
+
+  const editOfferForm = useForm({
+    resolver: zodResolver(updateOfferSchema),
   });
 
   const loadOffers = async () => {
@@ -86,17 +91,21 @@ export default function AdminPlatformPage() {
     }
   };
 
-  const onCreateTenant = async (data: any) => {
-    try {
-      await tenantsApi.create(data);
-      toast.success('Tenant créé avec succès ! Abonnement actif pour 30 jours.');
-      setShowTenantForm(false);
-      tenantForm.reset();
-      loadData();
-    } catch (error) {
-      toast.error(getErrorMessage(error));
-    }
-  };
+const onCreateTenant = async (data: any) => {
+  try {
+    // Récupérer l'offre sélectionnée pour afficher la bonne durée
+    const selectedOffer = offers.find(o => o.id === data.offerId);
+    const days = selectedOffer?.trialPeriodDays || 30;
+    
+    await tenantsApi.create(data);
+    toast.success(`Tenant créé avec succès ! Abonnement actif pour ${days} jours.`);  // ✅ Dynamique
+    setShowTenantForm(false);
+    tenantForm.reset();
+    loadData();
+  } catch (error) {
+    toast.error(getErrorMessage(error));
+  }
+};
 
   const onUpdateTenant = async (data: any) => {
     if (!editingTenant) return;
@@ -127,6 +136,31 @@ export default function AdminPlatformPage() {
         ? new Date(tenant.subscriptionEnd).toISOString().split('T')[0] 
         : '',
     });
+  };
+
+  const handleEditOffer = (offer: Offer) => {
+    setEditingOffer(offer);
+    editOfferForm.reset({
+      name: offer.name,
+      price: offer.price,
+      endOfSale: offer.endOfSale 
+        ? new Date(offer.endOfSale).toISOString().split('T')[0] 
+        : '',
+    });
+  };
+
+  const onUpdateOffer = async (data: any) => {
+    if (!editingOffer) return;
+    
+    try {
+      await offersApi.update(editingOffer.id, data);
+      toast.success('Offre modifiée avec succès !');
+      setEditingOffer(null);
+      editOfferForm.reset();
+      loadData();
+    } catch (error) {
+      toast.error(getErrorMessage(error));
+    }
   };
 
   const onCreateAdmin = async (data: any) => {
@@ -229,6 +263,19 @@ export default function AdminPlatformPage() {
                     />
                   </div>
                   <Input
+                    label="Durée (jours)"
+                    type="number"
+                    {...offerForm.register('trialPeriodDays', { valueAsNumber: true })}
+                    error={offerForm.formState.errors.trialPeriodDays?.message}
+                    placeholder="30"
+                    className="input-tech"
+                  />
+                  <div className="bg-primary-50 border-2 border-primary-200 rounded-lg p-3">
+                    <p className="text-xs text-primary-700">
+                      💡 Le Nombre de jours durant laquelle le service est accessible à vous utilisateurs itinérants
+                    </p>
+                  </div>
+                  <Input
                     label="Date fin commercialisation (optionnel)"
                     type="date"
                     {...offerForm.register('endOfSale')}
@@ -248,22 +295,106 @@ export default function AdminPlatformPage() {
               <div className="grid gap-4">
                 {offers.map((offer) => (
                   <Card key={offer.id} className="card-premium" data-testid="offer-item">
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <h3 className="text-xl font-bold text-slate-900">{offer.name}</h3>
-                        <p className="text-slate-600 mt-2">
-                          {offer.maxUsers} utilisateurs max • <span className="font-bold text-primary-600">{Number(offer.price).toFixed(2)}€</span>/mois
-                        </p>
-                        {offer.endOfSale && (
-                          <p className="text-sm text-danger-600 mt-2 font-medium">
-                            ⚠️ Fin de commercialisation : {new Date(offer.endOfSale).toLocaleDateString('fr-FR')}
+                    {editingOffer?.id === offer.id ? (
+                      // Mode édition
+                      <form onSubmit={editOfferForm.handleSubmit(onUpdateOffer)} className="space-y-4">
+                        <h3 className="text-lg font-bold text-slate-900 mb-4">Modifier l'offre</h3>
+                        
+                        <Input
+                          label="Nom de l'offre"
+                          {...editOfferForm.register('name')}
+                          error={editOfferForm.formState.errors.name?.message}
+                          className="input-tech"
+                        />
+                        
+                        <Input
+                          label="Prix (€)"
+                          type="number"
+                          step="0.01"
+                          {...editOfferForm.register('price', { valueAsNumber: true })}
+                          error={editOfferForm.formState.errors.price?.message}
+                          className="input-tech"
+                        />
+                        
+                        <Input
+                          label="Date fin commercialisation (optionnel)"
+                          type="date"
+                          {...editOfferForm.register('endOfSale')}
+                          error={editOfferForm.formState.errors.endOfSale?.message}
+                          className="input-tech"
+                        />
+
+                        <div className="bg-accent-50 border-2 border-accent-200 rounded-lg p-3">
+                          <p className="text-xs text-accent-700">
+                            ⚠️ Le nombre d'utilisateurs max et la période d'essai ne peuvent pas être modifiés pour préserver l'intégrité des abonnements existants.
                           </p>
-                        )}
+                        </div>
+
+                        <div className="bg-slate-50 border-2 border-slate-200 rounded-lg p-3">
+                          <p className="text-xs text-slate-600">
+                            📊 <strong>Informations non modifiables :</strong>
+                          </p>
+                          <p className="text-xs text-slate-600 mt-1">
+                            • Utilisateurs max : <strong>{offer.maxUsers}</strong>
+                          </p>
+                          <p className="text-xs text-slate-600">
+                            • Période d'essai : <strong>{offer.trialPeriodDays > 0 ? `${offer.trialPeriodDays} jours` : 'Pas d\'essai'}</strong>
+                          </p>
+                        </div>
+
+                        <div className="flex gap-2">
+                          <Button type="submit" className="btn-neon">💾 Enregistrer</Button>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            onClick={() => {
+                              setEditingOffer(null);
+                              editOfferForm.reset();
+                            }}
+                          >
+                            Annuler
+                          </Button>
+                        </div>
+                      </form>
+                    ) : (
+                      // Mode affichage
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <h3 className="text-xl font-bold text-slate-900">{offer.name}</h3>
+                          <p className="text-slate-600 mt-2">
+                            {offer.maxUsers} utilisateurs max • <span className="font-bold text-primary-600">{Number(offer.price).toFixed(2)}€</span>/mois
+                          </p>
+                          <p className="text-slate-600 mt-1">
+                            🎁 Durée de l'abonnement : <span className="font-semibold text-accent-600">
+                              {offer.trialPeriodDays > 0 
+                                ? `${offer.trialPeriodDays} jours` 
+                                : 'Pas d\'essai'}
+                            </span>
+                          </p>
+                          {offer.endOfSale && (
+                            <p className="text-sm text-danger-600 mt-2 font-medium">
+                              ⚠️ Fin de commercialisation : {new Date(offer.endOfSale).toLocaleDateString('fr-FR')}
+                            </p>
+                          )}
+                        </div>
+                        <div className="flex gap-2">
+                          <Button 
+                            variant="secondary" 
+                            size="sm" 
+                            onClick={() => handleEditOffer(offer)}
+                          >
+                            ✏️ Modifier
+                          </Button>
+                          <Button 
+                            variant="danger" 
+                            size="sm" 
+                            onClick={() => deleteOffer(offer.id)}
+                          >
+                            🗑️ Supprimer
+                          </Button>
+                        </div>
                       </div>
-                      <Button variant="danger" size="sm" onClick={() => deleteOffer(offer.id)}>
-                        🗑️ Supprimer
-                      </Button>
-                    </div>
+                    )}
                   </Card>
                 ))}
               </div>
@@ -320,7 +451,7 @@ export default function AdminPlatformPage() {
                       <option value="">Sélectionner une offre</option>
                       {offers.map((offer) => (
                         <option key={offer.id} value={offer.id}>
-                          {offer.name} - {Number(offer.price).toFixed(2)}€/mois
+                          {offer.name} - {Number(offer.price).toFixed(2)}€/mois • {offer.trialPeriodDays > 0 ? `${offer.trialPeriodDays}j d'essai` : 'Sans essai'}
                         </option>
                       ))}
                     </select>
@@ -330,7 +461,7 @@ export default function AdminPlatformPage() {
                       </p>
                     )}
                   </div>
-                  <Button type="submit" className="btn-neon">Créer le tenant (30 jours d'abonnement)</Button>
+                  <Button type="submit" className="btn-neon">Créer le tenant</Button>
                 </form>
               </Card>
             )}
@@ -378,7 +509,7 @@ export default function AdminPlatformPage() {
                           >
                             {offers.map((offer) => (
                               <option key={offer.id} value={offer.id}>
-                                {offer.name} - {Number(offer.price).toFixed(2)}€/mois
+                                {offer.name} - {Number(offer.price).toFixed(2)}€/mois • {offer.trialPeriodDays > 0 ? `${offer.trialPeriodDays}j d'essai` : 'Sans essai'}
                               </option>
                             ))}
                           </select>

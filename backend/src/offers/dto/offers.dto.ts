@@ -20,6 +20,11 @@ export class CreateOfferDto {
   @Min(0)
   price: number;
 
+  @IsNumber()
+  @Min(0)
+  @IsOptional()
+  trialPeriodDays?: number;
+
   @IsDateString()
   @IsOptional()
   endOfSale?: string;
@@ -39,6 +44,11 @@ export class UpdateOfferDto {
   @Min(0)
   @IsOptional()
   price?: number;
+
+  @IsNumber()
+  @Min(0)
+  @IsOptional()
+  trialPeriodDays?: number;
 
   @IsDateString()
   @IsOptional()

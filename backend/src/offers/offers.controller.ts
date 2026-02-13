@@ -32,6 +32,13 @@ export class OffersController {
     return this.offersService.findAll();
   }
 
+    // 🆕 NOUVELLE ROUTE - Offres disponibles (ADMIN peut accéder)
+  @Get('available')
+  @Roles(UserRole.ADMIN, UserRole.SUPERADMIN)  // 👈 ADMIN autorisé
+  async findAvailable() {
+    return this.offersService.findAvailable();
+  }
+
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.offersService.findOne(id);

@@ -6,14 +6,18 @@ import { Card, Spinner, Button } from '@/components/ui';
 import { useRequireAuth } from '@/lib/hooks/useAuth';
 import { UserRole } from '@/types';
 import { tenantsApi } from '@/lib/api/resources';
+import {  subscriptionsApi } from '@/lib/api/resources';
 import { getErrorMessage } from '@/lib/api/client';
 import toast from 'react-hot-toast';
+import Link from 'next/link';
+import { RenewSubscriptionModal } from '@/components/RenewSubscriptionModal';
 
 export default function MyOfferPage() {
   const { user } = useRequireAuth([UserRole.ADMIN]);
   
   const [tenant, setTenant] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [showRenewModal, setShowRenewModal] = useState(false);
 
   useEffect(() => {
     loadTenantData();
@@ -41,9 +45,25 @@ const loadTenantData = async () => {
 };
 
   const handleRenew = () => {
-    toast('Fonctionnalité de renouvellement en cours de développement', {
-      icon: '🚧',
-    });
+    setShowRenewModal(true);
+  };
+
+  const handleRenewSubmit = async (offerId: string, paymentMethod: string) => {
+    try {
+      await subscriptionsApi.renew({ 
+        offerId, 
+        paymentMethod 
+      });
+      
+      toast.success('✅ Abonnement renouvelé avec succès !');
+      
+      // Recharger les données du tenant pour mettre à jour les dates
+      await loadTenantData();
+    } catch (error: any) {
+      const message = getErrorMessage(error);
+      toast.error(`Erreur : ${message}`);
+      throw error; // Pour que le modal puisse gérer l'erreur
+    }
   };
 
   if (isLoading) {
@@ -81,7 +101,14 @@ const loadTenantData = async () => {
       <div className="max-w-4xl mx-auto space-y-8">
         {/* Header */}
         <div>
-          <h1 className="title-tech text-4xl mb-2">Mon Offre</h1>
+          <div className="flex items-center justify-between mb-2">
+            <h1 className="title-tech text-4xl">Mon Offre</h1>
+            <Link href="/dashboard/my-subscriptions">
+              <Button className="btn-primary">
+                📋 Mes Abonnements
+              </Button>
+            </Link>
+          </div>
           <p className="text-slate-600">
             Détails de votre abonnement et gestion du renouvellement
           </p>
@@ -189,6 +216,15 @@ const loadTenantData = async () => {
                 <span className="text-slate-600">Utilisateurs max</span>
                 <span className="font-bold text-slate-900">
                   {tenant.offer.maxUsers} utilisateur{tenant.offer.maxUsers > 1 ? 's' : ''}
+                </span>
+              </div>
+
+              <div className="flex justify-between items-center py-2 border-b border-slate-200">
+                <span className="text-slate-600">Période d'essai</span>
+                <span className="font-bold text-slate-900">
+                  {tenant.offer.trialPeriodDays > 0 
+                    ? `${tenant.offer.trialPeriodDays} jours` 
+                    : 'Pas d\'essai'}
                 </span>
               </div>
             </div>
@@ -313,6 +349,15 @@ const loadTenantData = async () => {
             </li>
           </ul>
         </div>
+
+        {/* Modal de renouvellement */}
+        <RenewSubscriptionModal
+          isOpen={showRenewModal}
+          onClose={() => setShowRenewModal(false)}
+          onRenew={handleRenewSubmit}
+          currentOfferId={tenant?.offer?.id}
+          subscriptionEndDate={tenant?.subscriptionEnd}
+        />
       </div>
     </AuthLayout>
   );

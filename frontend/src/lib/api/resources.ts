@@ -1,5 +1,5 @@
 import apiClient from './client';
-import { User, Tenant, Offer, Risk } from '@/types';
+import { User, Tenant, Offer, Risk, Subscription, SubscriptionStats, RenewSubscriptionRequest } from '@/types';
 
 // Users API
 export const usersApi = {
@@ -85,8 +85,15 @@ export const tenantsApi = {
 
 // Offers API
 export const offersApi = {
+  // Récupérer toutes les offres (SUPERADMIN uniquement)
   getAll: async (): Promise<Offer[]> => {
     const { data } = await apiClient.get<Offer[]>('/offers');
+    return data;
+  },
+
+  // Récupérer les offres disponibles (ADMIN autorisé - pour renouvellement)
+  getAvailable: async (): Promise<Offer[]> => {
+    const { data } = await apiClient.get<Offer[]>('/offers/available');
     return data;
   },
 
@@ -99,19 +106,53 @@ export const offersApi = {
     name: string;
     maxUsers: number;
     price: number;
+    trialPeriodDays?: number;
     endOfSale?: string;
   }): Promise<Offer> => {
     const { data } = await apiClient.post<Offer>('/offers', offerData);
     return data;
   },
 
-  update: async (id: string, offerData: Partial<Offer>): Promise<Offer> => {
-    const { data } = await apiClient.put<Offer>(`/offers/${id}`, offerData);
+  update: async (id: string, userData: Partial<User>): Promise<User> => {
+    const { data } = await apiClient.put<User>(`/users/${id}`, userData);
     return data;
   },
 
   delete: async (id: string): Promise<void> => {
     await apiClient.delete(`/offers/${id}`);
+  },
+};
+
+// Subscriptions API
+export const subscriptionsApi = {
+  // Récupérer tous les abonnements de mon tenant
+  getMySubscriptions: async (): Promise<Subscription[]> => {
+    const { data } = await apiClient.get<Subscription[]>('/subscriptions/my-tenant');
+    return data;
+  },
+
+  // Récupérer l'abonnement actif
+  getActive: async (): Promise<Subscription | null> => {
+    const { data } = await apiClient.get<Subscription | null>('/subscriptions/active');
+    return data;
+  },
+
+  // Récupérer les statistiques
+  getStats: async (): Promise<SubscriptionStats> => {
+    const { data } = await apiClient.get<SubscriptionStats>('/subscriptions/stats');
+    return data;
+  },
+
+  // Récupérer un abonnement spécifique
+  getOne: async (id: string): Promise<Subscription> => {
+    const { data } = await apiClient.get<Subscription>(`/subscriptions/${id}`);
+    return data;
+  },
+
+  // Renouveler l'abonnement
+  renew: async (renewData: RenewSubscriptionRequest): Promise<Subscription> => {
+    const { data } = await apiClient.post<Subscription>('/subscriptions/renew', renewData);
+    return data;
   },
 };
 

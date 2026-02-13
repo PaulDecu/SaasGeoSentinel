@@ -83,9 +83,19 @@ export type UpdateTenantInput = z.infer<typeof updateTenantSchema>;
 
 // Offer schemas
 export const createOfferSchema = z.object({
-  name: z.string().min(1, 'Le nom est requis'),
-  maxUsers: z.number().min(1, 'Le nombre maximum d\'utilisateurs doit être supérieur à 0'),
-  price: z.number().min(0, 'Le prix doit être positif'),
+  name: z.string().min(1).max(100),
+  maxUsers: z.number().min(1),
+  price: z.number().min(0),
+  trialPeriodDays: z.number().min(0).default(30),  // 🆕 NOUVEAU
+  endOfSale: z.string().optional(),
+});
+
+// Schéma de validation pour la mise à jour d'une offre
+export const updateOfferSchema = z.object({
+  name: z.string().min(1, 'Le nom est requis').max(100, 'Le nom est trop long').optional(),
+  maxUsers: z.number().min(1, 'Au moins 1 utilisateur requis').optional(),
+  price: z.number().min(0, 'Le prix doit être positif').optional(),
+  trialPeriodDays: z.number().min(0, 'La période d\'essai doit être positive').optional(),
   endOfSale: z.string().optional(),
 });
 

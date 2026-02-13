@@ -14,6 +14,7 @@ import { RisksModule } from './risks/risks.module';
 import { ProfileModule } from './profile/profile.module';
 import { AuditModule } from './audit/audit.module';
 import { SystemSettingsModule } from './system-settings/system-settings.module'; // ✅ AJOUTÉ
+import { SubscriptionsModule } from './subscriptions/subscriptions.module';
 
 // Entities
 import { User } from './users/entities/user.entity';
@@ -24,6 +25,7 @@ import { RefreshToken } from './auth/entities/refresh-token.entity';
 import { PasswordResetToken } from './auth/entities/password-reset-token.entity';
 import { AuditLog } from './audit/entities/audit-log.entity';
 import { SystemSetting } from './system-settings/entities/system-settings.entity'; // ✅ AJOUTÉ
+import { Subscription } from './subscriptions/entities/subscription.entity'; // ✅ AJOUTER CET IMPORT
 
 @Module({
   imports: [
@@ -50,6 +52,7 @@ import { SystemSetting } from './system-settings/entities/system-settings.entity
           PasswordResetToken,
           AuditLog,
           SystemSetting, // ✅ AJOUTÉ
+          Subscription,
         ],
         synchronize: false, // IMPORTANT: Toujours false en production
         logging: config.get('NODE_ENV') === 'development',
@@ -67,6 +70,7 @@ import { SystemSetting } from './system-settings/entities/system-settings.entity
     ProfileModule,
     AuditModule,
     SystemSettingsModule, // ✅ AJOUTÉ
+    SubscriptionsModule,
   ],
   providers: [
     {

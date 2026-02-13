@@ -11,6 +11,9 @@ import {
 import { Offer } from '../../offers/entities/offer.entity';
 import { User } from '../../users/entities/user.entity';
 import { Risk } from '../../risks/entities/risk.entity';
+import { Subscription } from '../../subscriptions/entities/subscription.entity';
+
+
 
 @Entity('tenants')
 export class Tenant {
@@ -62,4 +65,9 @@ export class Tenant {
 
   @OneToMany(() => Risk, (risk) => risk.tenant)
   risks: Risk[];
+
+  @OneToMany(() => Subscription, (subscription) => subscription.tenant)
+subscriptions: Subscription[];
+
+
 }

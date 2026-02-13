@@ -367,3 +367,172 @@ SELECT
 FROM information_schema.columns
 WHERE table_name = 'system_settings'
   AND column_name = 'dashboard_message';
+
+
+  -- Ajout de la colonne nb_jours_essai
+ALTER TABLE offers 
+ADD COLUMN trial_period_days INTEGER NOT NULL DEFAULT 30;
+
+-- Contrainte pour s'assurer que le nombre de jours est positif
+ALTER TABLE offers 
+ADD CONSTRAINT check_trial_days_positive CHECK (trial_period_days >= 0);
+
+-- Commentaire pour la documentation de la base
+COMMENT ON COLUMN offers.trial_period_days IS 'Nombre de jours d''essai inclus dans l''offre (0 = pas d''essai)';
+
+-- Mise à jour du trigger de timestamp (déjà existant dans votre script)
+-- Le trigger 'trigger_offers_updated_at' s'occupera de mettre à jour 'updated_at' 
+-- automatiquement lors de la modification des offres.
+
+-- =====================================================
+-- FONCTION UTILITAIRE pour updated_at
+-- =====================================================
+-- Cette fonction doit être créée UNE SEULE FOIS dans la base de données
+-- Elle sera utilisée par toutes les tables qui ont une colonne updated_at
+
+-- Vérifier si la fonction existe déjà, sinon la créer
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_proc WHERE proname = 'update_updated_at_column'
+    ) THEN
+        CREATE FUNCTION update_updated_at_column()
+        RETURNS TRIGGER AS $func$
+        BEGIN
+            NEW.updated_at = CURRENT_TIMESTAMP;
+            RETURN NEW;
+        END;
+        $func$ LANGUAGE plpgsql;
+    END IF;
+END
+$$;
+
+-- Commentaire sur la fonction
+COMMENT ON FUNCTION update_updated_at_column() IS 'Fonction trigger pour mettre à jour automatiquement la colonne updated_at';
+
+
+
+-- =====================================================
+-- TABLE: subscriptions (Abonnements et Paiements)
+-- =====================================================
+
+-- Création de la table subscriptions
+CREATE TABLE subscriptions (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    
+    -- Référence au tenant (entreprise cliente)
+    tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    
+    -- Dates de l'abonnement
+    payment_date TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    subscription_start_date DATE NOT NULL,
+    subscription_end_date DATE NOT NULL,
+    
+    -- Informations de paiement
+    payment_method VARCHAR(50) NOT NULL DEFAULT 'non_specifie',
+    payment_amount DECIMAL(10, 2) NOT NULL,
+    
+    -- Détails de l'abonnement
+    offer_name VARCHAR(100) NOT NULL,
+    offer_id UUID NOT NULL REFERENCES offers(id) ON DELETE RESTRICT,
+    days_subscribed INTEGER NOT NULL,
+    
+    -- Métadonnées
+    metadata JSONB DEFAULT '{}',
+    
+    -- Timestamps
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Index pour optimiser les requêtes
+CREATE INDEX idx_subscriptions_tenant_id ON subscriptions(tenant_id);
+CREATE INDEX idx_subscriptions_dates ON subscriptions(subscription_start_date, subscription_end_date);
+CREATE INDEX idx_subscriptions_offer_id ON subscriptions(offer_id);
+CREATE INDEX idx_subscriptions_payment_date ON subscriptions(payment_date DESC);
+
+-- Contrainte : la date de fin doit être après la date de début
+ALTER TABLE subscriptions 
+ADD CONSTRAINT check_subscription_dates 
+CHECK (subscription_end_date > subscription_start_date);
+
+-- Contrainte : le montant doit être positif
+ALTER TABLE subscriptions 
+ADD CONSTRAINT check_payment_amount_positive 
+CHECK (payment_amount >= 0);
+
+-- Contrainte : le nombre de jours doit être positif
+ALTER TABLE subscriptions 
+ADD CONSTRAINT check_days_subscribed_positive 
+CHECK (days_subscribed > 0);
+
+-- Fonction pour vérifier qu'il n'y a pas de chevauchement d'abonnements
+CREATE OR REPLACE FUNCTION check_subscription_overlap()
+RETURNS TRIGGER AS $$
+BEGIN
+    -- Vérifier s'il existe un abonnement qui chevauche pour ce tenant
+    IF EXISTS (
+        SELECT 1 
+        FROM subscriptions 
+        WHERE tenant_id = NEW.tenant_id 
+        AND id != COALESCE(NEW.id, '00000000-0000-0000-0000-000000000000'::uuid)
+        AND (
+            -- Le nouvel abonnement commence pendant un abonnement existant
+            (NEW.subscription_start_date >= subscription_start_date 
+             AND NEW.subscription_start_date < subscription_end_date)
+            OR
+            -- Le nouvel abonnement se termine pendant un abonnement existant
+            (NEW.subscription_end_date > subscription_start_date 
+             AND NEW.subscription_end_date <= subscription_end_date)
+            OR
+            -- Le nouvel abonnement englobe complètement un abonnement existant
+            (NEW.subscription_start_date <= subscription_start_date 
+             AND NEW.subscription_end_date >= subscription_end_date)
+        )
+    ) THEN
+        RAISE EXCEPTION 'Un abonnement existe déjà pour cette période. Les abonnements ne peuvent pas se chevaucher.';
+    END IF;
+    
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Trigger pour vérifier le chevauchement lors de l'insertion ou de la mise à jour
+CREATE TRIGGER trigger_check_subscription_overlap
+BEFORE INSERT OR UPDATE ON subscriptions
+FOR EACH ROW
+EXECUTE FUNCTION check_subscription_overlap();
+
+-- Trigger pour mettre à jour updated_at automatiquement
+CREATE TRIGGER trigger_subscriptions_updated_at
+BEFORE UPDATE ON subscriptions
+FOR EACH ROW
+EXECUTE FUNCTION update_updated_at_column();
+
+-- Commentaires pour la documentation
+COMMENT ON TABLE subscriptions IS 'Historique des abonnements et paiements des tenants';
+COMMENT ON COLUMN subscriptions.tenant_id IS 'Référence au tenant (entreprise cliente)';
+COMMENT ON COLUMN subscriptions.payment_date IS 'Date et heure du paiement';
+COMMENT ON COLUMN subscriptions.subscription_start_date IS 'Date de début de l''abonnement';
+COMMENT ON COLUMN subscriptions.subscription_end_date IS 'Date de fin de l''abonnement';
+COMMENT ON COLUMN subscriptions.payment_method IS 'Mode de paiement (carte, virement, etc.)';
+COMMENT ON COLUMN subscriptions.payment_amount IS 'Montant payé en euros';
+COMMENT ON COLUMN subscriptions.offer_name IS 'Nom de l''offre au moment de la souscription';
+COMMENT ON COLUMN subscriptions.offer_id IS 'Référence à l''offre souscrite';
+COMMENT ON COLUMN subscriptions.days_subscribed IS 'Nombre de jours souscrits';
+COMMENT ON COLUMN subscriptions.metadata IS 'Données additionnelles (numéro de transaction, etc.)';
+
+-- Vue pour faciliter les requêtes avec les détails du tenant et de l'offre
+CREATE OR REPLACE VIEW subscriptions_with_details AS
+SELECT 
+    s.*,
+    t.company_name,
+    t.contact_email,
+    o.price as current_offer_price,
+    o.max_users as offer_max_users
+FROM subscriptions s
+JOIN tenants t ON s.tenant_id = t.id
+JOIN offers o ON s.offer_id = o.id
+ORDER BY s.payment_date DESC;
+
+COMMENT ON VIEW subscriptions_with_details IS 'Vue enrichie des abonnements avec les détails du tenant et de l''offre';
