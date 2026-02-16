@@ -90,6 +90,23 @@ const loadTenantData = async () => {
     ? Math.ceil((new Date(tenant.subscriptionEnd).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))
     : null;
 
+const offerNameLower = tenant.offer.name.toLowerCase();
+const isButtonDisabled = (
+  (offerNameLower.includes('gratuit') && daysRemaining !== null && daysRemaining > 37) ||
+  (offerNameLower.includes('mensuel') && daysRemaining !== null && daysRemaining > 31) ||
+  (offerNameLower.includes('annuel') && daysRemaining !== null && daysRemaining > 365)
+);
+
+// Calcul du seuil pour le message
+const threshold = offerNameLower.includes('gratuit') ? 37 : offerNameLower.includes('mensuel') ? 31 : 365;
+const daysToWait = daysRemaining !== null ? daysRemaining - threshold : 0;
+
+const disabledReason = isButtonDisabled 
+  ? `Renouvellement possible dans ${daysToWait} jour${daysToWait > 1 ? 's' : ''}.`
+  : "";
+
+
+
   const isExpiringSoon = daysRemaining !== null && daysRemaining <= 7;
   const isExpired = daysRemaining !== null && daysRemaining < 0;
 
@@ -220,7 +237,7 @@ const loadTenantData = async () => {
               </div>
 
               <div className="flex justify-between items-center py-2 border-b border-slate-200">
-                <span className="text-slate-600">Période d'essai</span>
+                <span className="text-slate-600">Durée de l'offre actuelle</span>
                 <span className="font-bold text-slate-900">
                   {tenant.offer.trialPeriodDays > 0 
                     ? `${tenant.offer.trialPeriodDays} jours` 
@@ -305,25 +322,36 @@ const loadTenantData = async () => {
           </Card>
         </div>
 
-        {/* Actions */}
-        <Card className="card-premium">
-          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-            <div>
-              <h3 className="text-lg font-bold text-slate-900 mb-1">
-                Renouvellement de l'abonnement
-              </h3>
-              <p className="text-sm text-slate-600">
-                Prolongez votre abonnement pour le mois suivant et continuez à bénéficier de nos services.
-              </p>
-            </div>
-            <Button 
-              onClick={handleRenew}
-              className="btn-neon whitespace-nowrap"
-            >
-              🔄 Renouveler ma mensualité
-            </Button>
-          </div>
-        </Card>
+{/* Actions */}
+<Card className="card-premium">
+  <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+    <div className="flex-1">
+      <h3 className="text-lg font-bold text-slate-900 mb-1">
+        Renouvellement de l'abonnement
+      </h3>
+      <p className="text-sm text-slate-600">
+        Prolongez votre abonnement pour le mois suivant et continuez à bénéficier de nos services.
+      </p>
+    </div>
+    
+    <div className="flex flex-col items-end gap-2">
+      <Button 
+        onClick={handleRenew}
+        className={`btn-neon whitespace-nowrap ${isButtonDisabled ? 'opacity-50 grayscale cursor-not-allowed' : ''}`}
+        disabled={isButtonDisabled}
+      >
+        {isButtonDisabled ? '🔒 Renouvellement bloqué' : '🔄 Renouveler ma mensualité'}
+      </Button>
+      
+      {/* Affichage du message explicatif en texte clair */}
+      {isButtonDisabled && (
+        <span className="text-[10px] uppercase tracking-wider font-bold text-accent-600 bg-accent-50 px-2 py-1 rounded border border-accent-200">
+          {disabledReason}
+        </span>
+      )}
+    </div>
+  </div>
+</Card>
 
         {/* Informations complémentaires */}
         <div className="bg-primary-50 border-2 border-primary-200 rounded-xl p-6">
@@ -333,7 +361,7 @@ const loadTenantData = async () => {
           <ul className="space-y-2 text-sm text-slate-700">
             <li className="flex items-start gap-2">
               <span className="text-primary-600 font-bold">•</span>
-              <span>Le renouvellement prolonge votre abonnement pour 30 jours supplémentaires</span>
+              <span>Le renouvellement prolonge votre abonnement pour la durée de l'offre choisie</span>
             </li>
             <li className="flex items-start gap-2">
               <span className="text-primary-600 font-bold">•</span>
@@ -341,7 +369,7 @@ const loadTenantData = async () => {
             </li>
             <li className="flex items-start gap-2">
               <span className="text-primary-600 font-bold">•</span>
-              <span>Le montant débité sera de <strong>{price.toFixed(2)} €</strong></span>
+              <span>Le montant débité dépendra de l'offre choisie</span>
             </li>
             <li className="flex items-start gap-2">
               <span className="text-primary-600 font-bold">•</span>

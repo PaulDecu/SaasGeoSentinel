@@ -6,37 +6,64 @@ import { Card, Spinner, Button } from '@/components/ui';
 import { useRequireAuth } from '@/lib/hooks/useAuth';
 import { UserRole } from '@/types';
 import { tenantsApi } from '@/lib/api/resources';
+import {  subscriptionsApi } from '@/lib/api/resources';
 import { getErrorMessage } from '@/lib/api/client';
 import toast from 'react-hot-toast';
+import Link from 'next/link';
+import { RenewSubscriptionModal } from '@/components/RenewSubscriptionModal';
 
 export default function MyOfferPage() {
   const { user } = useRequireAuth([UserRole.ADMIN]);
   
   const [tenant, setTenant] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [showRenewModal, setShowRenewModal] = useState(false);
 
   useEffect(() => {
     loadTenantData();
   }, []);
 
-  const loadTenantData = async () => {
-    if (!user?.tenantId) return;
+const loadTenantData = async () => {
+  if (!user?.tenantId) return;
+  
+  setIsLoading(true);
+  try {
+    const data = await tenantsApi.getOne(user.tenantId);
+    console.log("Données reçues de l'API:", data); // Pour vérifier la structure
+    setTenant(data);
+  } catch (error: any) {
+    const message = getErrorMessage(error);
+    toast.error(`Erreur ${error?.status || ''}: ${message}`);
     
-    setIsLoading(true);
-    try {
-      const data = await tenantsApi.getOne(user.tenantId);
-      setTenant(data);
-    } catch (error) {
-      toast.error(getErrorMessage(error));
-    } finally {
-      setIsLoading(false);
+    // Si c'est un 403, on peut rediriger ou afficher un état spécifique
+    if (error?.status === 403) {
+      setTenant('FORBIDDEN'); 
     }
-  };
+  } finally {
+    setIsLoading(false);
+  }
+};
 
   const handleRenew = () => {
-    toast('Fonctionnalité de renouvellement en cours de développement', {
-      icon: '🚧',
-    });
+    setShowRenewModal(true);
+  };
+
+  const handleRenewSubmit = async (offerId: string, paymentMethod: string) => {
+    try {
+      await subscriptionsApi.renew({ 
+        offerId, 
+        paymentMethod 
+      });
+      
+      toast.success('✅ Abonnement renouvelé avec succès !');
+      
+      // Recharger les données du tenant pour mettre à jour les dates
+      await loadTenantData();
+    } catch (error: any) {
+      const message = getErrorMessage(error);
+      toast.error(`Erreur : ${message}`);
+      throw error; // Pour que le modal puisse gérer l'erreur
+    }
   };
 
   if (isLoading) {
@@ -66,12 +93,22 @@ export default function MyOfferPage() {
   const isExpiringSoon = daysRemaining !== null && daysRemaining <= 7;
   const isExpired = daysRemaining !== null && daysRemaining < 0;
 
+  // ✅ Convertir le prix en nombre de manière sécurisée
+  const price = Number(tenant.offer.price) || 0;
+
   return (
     <AuthLayout requiredRoles={[UserRole.ADMIN]}>
       <div className="max-w-4xl mx-auto space-y-8">
         {/* Header */}
         <div>
-          <h1 className="title-tech text-4xl mb-2">Mon Offre</h1>
+          <div className="flex items-center justify-between mb-2">
+            <h1 className="title-tech text-4xl">Mon Offre</h1>
+            <Link href="/dashboard/my-subscriptions">
+              <Button className="btn-primary">
+                📋 Mes Abonnements
+              </Button>
+            </Link>
+          </div>
           <p className="text-slate-600">
             Détails de votre abonnement et gestion du renouvellement
           </p>
@@ -171,7 +208,7 @@ export default function MyOfferPage() {
               <div className="flex justify-between items-center py-2 border-b border-slate-200">
                 <span className="text-slate-600">Prix mensuel</span>
                 <span className="text-xl font-bold text-slate-900">
-                  {tenant.offer.price.toFixed(2)} €<span className="text-sm font-normal text-slate-600">/mois</span>
+                  {price.toFixed(2)} €<span className="text-sm font-normal text-slate-600">/mois</span>
                 </span>
               </div>
 
@@ -182,16 +219,14 @@ export default function MyOfferPage() {
                 </span>
               </div>
 
-              {tenant.offer.endOfSale && (
-                <div className="mt-4 p-3 bg-accent-50 border border-accent-200 rounded-lg">
-                  <p className="text-xs text-accent-700 font-medium">
-                    ⚠️ Offre en fin de commercialisation
-                  </p>
-                  <p className="text-xs text-slate-600 mt-1">
-                    Plus disponible à la vente depuis le {new Date(tenant.offer.endOfSale).toLocaleDateString('fr-FR')}
-                  </p>
-                </div>
-              )}
+              <div className="flex justify-between items-center py-2 border-b border-slate-200">
+                <span className="text-slate-600">Période d'essai</span>
+                <span className="font-bold text-slate-900">
+                  {tenant.offer.trialPeriodDays > 0 
+                    ? `${tenant.offer.trialPeriodDays} jours` 
+                    : 'Pas d\'essai'}
+                </span>
+              </div>
             </div>
           </Card>
 
@@ -253,6 +288,19 @@ export default function MyOfferPage() {
                   )}
                 </div>
               </div>
+
+              {daysRemaining !== null && (
+                <div className="py-2 border-t border-slate-200 mt-2 pt-3">
+                  <p className="text-sm text-slate-600 mb-1">Jours restants</p>
+                  <p className={`text-2xl font-black ${
+                    isExpired ? 'text-danger-600' : 
+                    isExpiringSoon ? 'text-accent-600' : 
+                    'text-success-600'
+                  }`}>
+                    {isExpired ? '0' : daysRemaining} jour{daysRemaining > 1 ? 's' : ''}
+                  </p>
+                </div>
+              )}
             </div>
           </Card>
         </div>
@@ -293,7 +341,7 @@ export default function MyOfferPage() {
             </li>
             <li className="flex items-start gap-2">
               <span className="text-primary-600 font-bold">•</span>
-              <span>Le montant débité sera de <strong>{tenant.offer.price.toFixed(2)} €</strong></span>
+              <span>Le montant débité sera de <strong>{price.toFixed(2)} €</strong></span>
             </li>
             <li className="flex items-start gap-2">
               <span className="text-primary-600 font-bold">•</span>
@@ -301,6 +349,15 @@ export default function MyOfferPage() {
             </li>
           </ul>
         </div>
+
+        {/* Modal de renouvellement */}
+        <RenewSubscriptionModal
+          isOpen={showRenewModal}
+          onClose={() => setShowRenewModal(false)}
+          onRenew={handleRenewSubmit}
+          currentOfferId={tenant?.offer?.id}
+          subscriptionEndDate={tenant?.subscriptionEnd}
+        />
       </div>
     </AuthLayout>
   );

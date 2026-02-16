@@ -38,6 +38,7 @@ function RecenterMap({ lat, lng }: { lat: number; lng: number }) {
   return null;
 }
 
+
 // Composant pour gérer le clic sur la carte lors de la création/édition
 function MapPicker({ onChange, position }: { onChange: (lat: number, lng: number) => void, position: [number, number] | null }) {
   useMapEvents({
@@ -72,7 +73,36 @@ export default function AdminRisksPage() {
       longitude: 2.3522,
     }
   });
+  
+// --- AJOUTEZ LA FONCTION ICI ---
+  const handleGetLocation = () => {
+    if (!navigator.geolocation) {
+      toast.error("La géolocalisation n'est pas supportée.");
+      return;
+    }
 
+    const loader = toast.loading("Récupération de votre position...");
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const lat = parseFloat(position.coords.latitude.toFixed(6));
+        const lng = parseFloat(position.coords.longitude.toFixed(6));
+        
+        // Maintenant riskForm est accessible car nous sommes dans le même scope
+        riskForm.setValue('latitude', lat, { shouldValidate: true });
+        riskForm.setValue('longitude', lng, { shouldValidate: true });
+        
+        toast.dismiss(loader);
+        toast.success("Position actualisée !");
+      },
+      (error) => {
+        toast.dismiss(loader);
+        toast.error("Impossible de récupérer votre position.");
+      },
+      { enableHighAccuracy: true }
+    );
+  };
+  // -------------------------------
   const watchedLat = useWatch({ control: riskForm.control, name: 'latitude' });
   const watchedLng = useWatch({ control: riskForm.control, name: 'longitude' });
 
@@ -186,13 +216,20 @@ const filteredRisks = risks.filter(risk => {
             }}>
               {showGlobalMap ? 'Voir la liste' : '🗺️ Carte des risques'}
             </Button>
-            <Button onClick={() => {
-              setShowGlobalMap(false);
-              if (showRiskForm) cancelEdit();
-              else setShowRiskForm(true);
-            }}>
-              {showRiskForm ? 'Annuler' : '+ Nouveau risque'}
-            </Button>
+<Button onClick={() => {
+  setShowGlobalMap(false);
+  if (showRiskForm) {
+    cancelEdit();
+  } else {
+    setShowRiskForm(true);
+    // On récupère la position automatiquement si c'est une création
+    if (!editingRisk) {
+      handleGetLocation();
+    }
+  }
+}}>
+  {showRiskForm ? 'Annuler' : '+ Nouveau risque'}
+</Button>
           </div>
         </div>
 
@@ -252,6 +289,15 @@ const filteredRisks = risks.filter(risk => {
                   <Input label="Latitude" type="number" step="0.000001" {...riskForm.register('latitude', { valueAsNumber: true })} />
                   <Input label="Longitude" type="number" step="0.000001" {...riskForm.register('longitude', { valueAsNumber: true })} />
                 </div>
+                <Button 
+  type="button" 
+  variant="secondary" 
+  size="sm" 
+  className="w-full mt-2" 
+  onClick={handleGetLocation}
+>
+  📍 Ma position actuelle
+</Button>
                 <div className="flex gap-2 pt-4">
                   <Button type="submit">{editingRisk ? 'Mettre à jour' : 'Créer'}</Button>
                   <Button type="button" variant="ghost" onClick={cancelEdit}>Annuler</Button>

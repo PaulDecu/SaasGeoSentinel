@@ -22,6 +22,47 @@ import { UserRole } from '../users/entities/user-role.enum';
 export class TenantsController {
   constructor(private readonly tenantsService: TenantsService) {}
 
+  // 🆕 NOUVELLE ROUTE : Vérifier la validité de l'abonnement
+  @Get('subscription-status')
+  @Roles(UserRole.ADMIN, UserRole.SUPERADMIN, UserRole.GESTIONNAIRE, UserRole.UTILISATEUR)
+  async checkSubscriptionStatus(@CurrentUser() user: User) {
+    const tenantId = user.tenantId;
+    
+    if (!tenantId) {
+      return {
+        isValid: false,
+        subscriptionEnd: null,
+        daysRemaining: 0,
+      };
+    }
+
+    const tenant = await this.tenantsService.findOne(tenantId);
+    
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
+    
+    const subscriptionEnd = tenant.subscriptionEnd ? new Date(tenant.subscriptionEnd) : null;
+    
+    if (!subscriptionEnd) {
+      return {
+        isValid: false,
+        subscriptionEnd: null,
+        daysRemaining: 0,
+      };
+    }
+    
+    subscriptionEnd.setHours(0, 0, 0, 0);
+    
+    const isValid = subscriptionEnd >= now;
+    const daysRemaining = Math.ceil((subscriptionEnd.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+    
+    return {
+      isValid,
+      subscriptionEnd: tenant.subscriptionEnd,
+      daysRemaining: isValid ? daysRemaining : 0,
+    };
+  }
+
   @Post()
   @Roles(UserRole.SUPERADMIN)
   create(@Body() createTenantDto: CreateTenantDto, @CurrentUser() user: User) {

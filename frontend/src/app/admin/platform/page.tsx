@@ -209,6 +209,13 @@ const onCreateTenant = async (data: any) => {
 
         {/* Tabs */}
         <div className="flex gap-2">
+                    <Button
+            variant={activeTab === 'tenants' ? 'primary' : 'ghost'}
+            onClick={() => setActiveTab('tenants')}
+            className={activeTab === 'tenants' ? 'btn-neon' : ''}
+          >
+            🏢 Tenants
+          </Button>
           <Button
             variant={activeTab === 'offers' ? 'primary' : 'ghost'}
             onClick={() => setActiveTab('offers')}
@@ -216,13 +223,7 @@ const onCreateTenant = async (data: any) => {
           >
             📦 Offres
           </Button>
-          <Button
-            variant={activeTab === 'tenants' ? 'primary' : 'ghost'}
-            onClick={() => setActiveTab('tenants')}
-            className={activeTab === 'tenants' ? 'btn-neon' : ''}
-          >
-            🏢 Tenants
-          </Button>
+
         </div>
 
         {/* Offers Tab */}

@@ -1,9 +1,7 @@
 {
-  "/my-offer/page": "app/my-offer/page.js",
+  "/login/page": "app/login/page.js",
   "/dashboard/page": "app/dashboard/page.js",
-  "/admin/platform/page": "app/admin/platform/page.js",
-  "/admin/teams/page": "app/admin/teams/page.js",
-  "/dashboard/my-subscriptions/page": "app/dashboard/my-subscriptions/page.js",
   "/admin/risks/page": "app/admin/risks/page.js",
-  "/login/page": "app/login/page.js"
+  "/admin/teams/page": "app/admin/teams/page.js",
+  "/admin/platform/page": "app/admin/platform/page.js"
 }
