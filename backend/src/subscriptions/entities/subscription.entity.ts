@@ -22,6 +22,9 @@ export class Subscription {
   @JoinColumn({ name: 'tenant_id' })
   tenant: Tenant;
 
+  @Column({ name: 'functional_id', length: 12, unique: true })
+  functionalId: string;
+
   @Column({ name: 'payment_date', type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
   paymentDate: Date;
 

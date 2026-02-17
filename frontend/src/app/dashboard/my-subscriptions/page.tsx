@@ -113,6 +113,7 @@ export default function MySubscriptionsPage() {
   const handleGenerateInvoice = async (subscription: Subscription) => {
     setGeneratingId(subscription.id);
     try {
+      
       // On importe jsPDF de façon dynamique pour éviter d'alourdir le bundle SSR
       await import('jspdf'); // pré-chargement
 

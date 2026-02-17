@@ -82,7 +82,7 @@ export const tenantsApi = {
     return data;
   },
 
-  // ✅ NOUVELLES MÉTHODES AJOUTÉES
+  // NOUVELLES MÉTHODES AJOUTÉES
   getSubscriptionStatus: async (): Promise<{
     isValid: boolean;
     subscriptionEnd: string | null;
@@ -168,15 +168,58 @@ export const subscriptionsApi = {
     return data;
   },
 
-  // Récupérer un abonnement spécifique
+  // Récupérer un abonnement spécifique par ID
   getOne: async (id: string): Promise<Subscription> => {
     const { data } = await apiClient.get<Subscription>(`/subscriptions/${id}`);
+    return data;
+  },
+
+  // ✅ NOUVELLE MÉTHODE : Récupérer un abonnement par son functional_id
+  getByFunctionalId: async (functionalId: string): Promise<Subscription> => {
+    const { data } = await apiClient.get<Subscription>(`/subscriptions/functional/${functionalId}`);
     return data;
   },
 
   // Renouveler l'abonnement
   renew: async (renewData: RenewSubscriptionRequest): Promise<Subscription> => {
     const { data } = await apiClient.post<Subscription>('/subscriptions/renew', renewData);
+    return data;
+  },
+
+  // ✅ NOUVELLES MÉTHODES pour SuperAdmin
+  // Rechercher des abonnements par functional_id
+  searchByFunctionalId: async (functionalId: string): Promise<Subscription[]> => {
+    const { data } = await apiClient.get<Subscription[]>(`/subscriptions/search/functional/${functionalId}`);
+    return data;
+  },
+
+  // Obtenir tous les abonnements avec pagination
+  getAllWithPagination: async (params: {
+    page?: number;
+    limit?: number;
+    search?: string;
+  }): Promise<{
+    subscriptions: Subscription[];
+    total: number;
+    pages: number;
+    currentPage: number;
+  }> => {
+    const { data } = await apiClient.get('/subscriptions/all', { params });
+    return data;
+  },
+
+  // ✅ NOUVELLE MÉTHODE : Créer un abonnement manuellement (SuperAdmin)
+  createManual: async (tenantId: string, subscriptionData: {
+    offerId: string;
+    subscriptionStartDate: string;
+    subscriptionEndDate: string;
+    paymentMethod?: string;
+    paymentAmount: number;
+    offerName: string;
+    daysSubscribed: number;
+    metadata?: Record<string, any>;
+  }): Promise<Subscription> => {
+    const { data } = await apiClient.post<Subscription>(`/subscriptions/create/${tenantId}`, subscriptionData);
     return data;
   },
 };

@@ -117,6 +117,7 @@ export interface PaginatedResponse<T> {
 export interface Subscription {
   id: string;
   tenantId: string;
+  functionalId: string; // ✅ Identifiant fonctionnel au format GS-00000000x
   paymentDate: string;
   subscriptionStartDate: string;
   subscriptionEndDate: string;

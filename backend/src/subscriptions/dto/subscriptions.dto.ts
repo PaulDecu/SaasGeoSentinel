@@ -62,6 +62,7 @@ export class RenewSubscriptionDto {
 export class SubscriptionResponseDto {
   id: string;
   tenantId: string;
+  functionalId: string; // ✅ AJOUT du functional_id
   paymentDate: Date;
   subscriptionStartDate: Date;
   subscriptionEndDate: Date;

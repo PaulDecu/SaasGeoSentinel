@@ -555,3 +555,98 @@ ALTER TABLE tenants
 
 -- Mise à jour du timestamp updated_at automatiquement (si trigger existant)
 -- Si vous n'avez pas de trigger, les UPDATE le feront via TypeORM.
+
+-- Migration pour ajouter l'identifiant fonctionnel aux souscriptions
+-- Format: GS-00000000x (ex: GS-000000001, GS-000000002, etc.)
+
+-- 1. Créer une séquence pour l'auto-incrémentation
+CREATE SEQUENCE subscription_functional_id_seq 
+START WITH 1 
+INCREMENT BY 1;
+
+-- 2. Ajouter la colonne functional_id à la table subscriptions SANS contrainte unique pour l'instant
+ALTER TABLE subscriptions 
+ADD COLUMN functional_id VARCHAR(12);
+
+-- 3. Créer une fonction pour générer l'identifiant fonctionnel
+CREATE OR REPLACE FUNCTION generate_subscription_functional_id()
+RETURNS TEXT AS $$
+DECLARE
+    next_id INTEGER;
+BEGIN
+    -- Récupérer le prochain ID de la séquence
+    SELECT nextval('subscription_functional_id_seq') INTO next_id;
+    
+    -- Formater l'ID au format GS-00000000x
+    RETURN 'GS-' || LPAD(next_id::TEXT, 9, '0');
+END;
+$$ LANGUAGE plpgsql;
+
+-- 4. Mettre à jour TOUS les enregistrements existants avec des IDs fonctionnels AVANT de créer les contraintes
+DO $$
+DECLARE
+    rec RECORD;
+BEGIN
+    -- Parcourir tous les enregistrements existants et leur attribuer un ID fonctionnel
+    FOR rec IN 
+        SELECT id FROM subscriptions 
+        WHERE functional_id IS NULL OR functional_id = ''
+        ORDER BY created_at ASC
+    LOOP
+        UPDATE subscriptions 
+        SET functional_id = generate_subscription_functional_id()
+        WHERE id = rec.id;
+    END LOOP;
+END;
+$$;
+
+-- 5. MAINTENANT ajouter les contraintes une fois que tous les enregistrements ont des valeurs uniques
+ALTER TABLE subscriptions 
+ALTER COLUMN functional_id SET NOT NULL;
+
+-- 6. Créer un index unique pour optimiser les recherches par functional_id
+CREATE UNIQUE INDEX idx_subscriptions_functional_id ON subscriptions(functional_id);
+
+-- 7. Créer un trigger pour générer automatiquement l'ID lors de l'insertion
+CREATE OR REPLACE FUNCTION set_subscription_functional_id()
+RETURNS TRIGGER AS $$
+BEGIN
+    -- Générer l'ID fonctionnel seulement si il n'est pas déjà défini
+    IF NEW.functional_id IS NULL OR NEW.functional_id = '' THEN
+        NEW.functional_id := generate_subscription_functional_id();
+    END IF;
+    
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- 8. Créer le trigger sur INSERT
+CREATE TRIGGER trigger_set_subscription_functional_id
+    BEFORE INSERT ON subscriptions
+    FOR EACH ROW
+    EXECUTE FUNCTION set_subscription_functional_id();
+
+-- 9. Ajouter un commentaire pour la documentation
+COMMENT ON COLUMN subscriptions.functional_id IS 'Identifiant fonctionnel unique au format GS-00000000x, généré automatiquement et non modifiable';
+
+-- 10. Créer une contrainte pour s'assurer du format correct
+ALTER TABLE subscriptions 
+ADD CONSTRAINT check_functional_id_format 
+CHECK (functional_id ~ '^GS-[0-9]{9}$');
+
+-- 11. Mettre à jour la vue existante pour inclure le functional_id
+DROP VIEW IF EXISTS subscriptions_with_details;
+
+CREATE OR REPLACE VIEW subscriptions_with_details AS
+SELECT 
+    s.*,
+    t.company_name,
+    t.contact_email,
+    o.price as current_offer_price,
+    o.max_users as offer_max_users
+FROM subscriptions s
+JOIN tenants t ON s.tenant_id = t.id
+JOIN offers o ON s.offer_id = o.id
+ORDER BY s.payment_date DESC;
+
+COMMENT ON VIEW subscriptions_with_details IS 'Vue enrichie des abonnements avec les détails du tenant et de l''offre, incluant le functional_id';

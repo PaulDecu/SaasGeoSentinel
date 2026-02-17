@@ -29,7 +29,7 @@ export class SubscriptionsService {
   }
 
   /**
-   * Récupérer un abonnement spécifique
+   * Récupérer un abonnement spécifique par ID
    */
   async findOne(id: string, tenantId: string): Promise<Subscription> {
     const subscription = await this.subscriptionRepository.findOne({
@@ -39,6 +39,29 @@ export class SubscriptionsService {
 
     if (!subscription) {
       throw new NotFoundException('Abonnement non trouvé');
+    }
+
+    return subscription;
+  }
+
+  /**
+   * Récupérer un abonnement par son functional_id
+   */
+  async findByFunctionalId(functionalId: string, tenantId?: string): Promise<Subscription> {
+    const whereConditions: any = { functionalId };
+    
+    // Si tenantId est fourni, ajouter la condition
+    if (tenantId) {
+      whereConditions.tenantId = tenantId;
+    }
+
+    const subscription = await this.subscriptionRepository.findOne({
+      where: whereConditions,
+      relations: ['offer', 'tenant'],
+    });
+
+    if (!subscription) {
+      throw new NotFoundException(`Abonnement ${functionalId} non trouvé`);
     }
 
     return subscription;
@@ -75,6 +98,7 @@ export class SubscriptionsService {
 
   /**
    * Créer un nouvel abonnement manuellement (SuperAdmin uniquement)
+   * Note: Le functional_id sera généré automatiquement par le trigger PostgreSQL
    */
   async create(tenantId: string, createSubscriptionDto: CreateSubscriptionDto): Promise<Subscription> {
     // Vérifier que le tenant existe
@@ -91,7 +115,7 @@ export class SubscriptionsService {
       throw new NotFoundException('Offre non trouvée');
     }
 
-    // Créer l'abonnement
+    // Créer l'abonnement (functional_id sera généré automatiquement)
     const subscription = this.subscriptionRepository.create({
       tenantId,
       ...createSubscriptionDto,
@@ -110,6 +134,7 @@ export class SubscriptionsService {
 
   /**
    * Renouveler un abonnement (utilisé par les Admins de tenant)
+   * Note: Le functional_id sera généré automatiquement par le trigger PostgreSQL
    */
   async renew(tenantId: string, renewDto: RenewSubscriptionDto): Promise<Subscription> {
     // Vérifier que le tenant existe
@@ -169,7 +194,7 @@ export class SubscriptionsService {
       (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)
     );
 
-    // Créer le nouvel abonnement
+    // Créer le nouvel abonnement (functional_id sera généré automatiquement)
     const subscription = this.subscriptionRepository.create({
       tenantId,
       offerId: offer.id,
@@ -247,5 +272,50 @@ export class SubscriptionsService {
       hasActiveSubscription: !!activeSubscription,
       activeSubscription: activeSubscription || null,
     };
+  }
+
+  /**
+   * Rechercher des abonnements par functional_id (pour les SuperAdmin)
+   */
+  async searchByFunctionalId(functionalId: string): Promise<Subscription[]> {
+    return this.subscriptionRepository.find({
+      where: { 
+        functionalId: functionalId 
+      },
+      relations: ['offer', 'tenant'],
+      order: { createdAt: 'DESC' }
+    });
+  }
+
+  /**
+   * Obtenir tous les abonnements avec pagination (SuperAdmin)
+   */
+  async findAllWithPagination(
+    page: number = 1, 
+    limit: number = 20, 
+    search?: string
+  ): Promise<{ subscriptions: Subscription[]; total: number; pages: number }> {
+    const queryBuilder = this.subscriptionRepository
+      .createQueryBuilder('subscription')
+      .leftJoinAndSelect('subscription.offer', 'offer')
+      .leftJoinAndSelect('subscription.tenant', 'tenant');
+
+    // Recherche par functional_id ou nom de l'entreprise
+    if (search) {
+      queryBuilder.where(
+        'subscription.functional_id ILIKE :search OR tenant.company_name ILIKE :search',
+        { search: `%${search}%` }
+      );
+    }
+
+    const [subscriptions, total] = await queryBuilder
+      .orderBy('subscription.created_at', 'DESC')
+      .skip((page - 1) * limit)
+      .take(limit)
+      .getManyAndCount();
+
+    const pages = Math.ceil(total / limit);
+
+    return { subscriptions, total, pages };
   }
 }

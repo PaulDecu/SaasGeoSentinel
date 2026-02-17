@@ -29,7 +29,7 @@ export interface TenantInfo {
 }
 
 export interface InvoiceOptions {
-  /** Numéro de facture (auto-généré à partir de l'id si absent) */
+  /** Numéro de facture (utilise functional_id si absent) */
   invoiceNumber?: string;
   /** Logo en base64 (data:image/png;base64,...) */
   logoBase64?: string;
@@ -66,6 +66,7 @@ function zeroPad(num: number, size = 3): string {
 
 /**
  * Génère un PDF de facture fidèle au modèle Excel et le télécharge automatiquement.
+ * ✅ Utilise maintenant le functional_id comme numéro de facture par défaut
  *
  * @param subscription  - Données de la souscription
  * @param tenant        - Informations de l'entreprise prestataire
@@ -85,38 +86,37 @@ export function generateInvoicePdf(
   const CONTENT_W = PW - MARGIN * 2;
 
   // ── Numéro de facture ───────────────────────────────────────────────────────
-  const invoiceNumber =
-    options.invoiceNumber ?? zeroPad(subscription.id ?? 1);
-
+  // ✅ CHANGEMENT : Utilise functional_id par défaut au lieu de subscription.id
+  //const invoiceNumber = options.invoiceNumber ?? 
+    //subscription.functionalId ?? 
+    //zeroPad(subscription.id ? parseInt(subscription.id.slice(-3), 16) : 1);
+    const invoiceNumber = subscription.functionalId;
   // ── Montant ─────────────────────────────────────────────────────────────────
   const amount = Number(subscription.paymentAmount) || 0;
 
   // ── Description de la prestation ────────────────────────────────────────────
-  const description = `Abonnement ${subscription.offerName} — ${formatDate(
-    subscription.subscriptionStartDate
-  )} → ${formatDate(subscription.subscriptionEndDate)} (${subscription.daysSubscribed} jours)`;
+   const description = `Abonnement ${subscription.offerName} du ${subscription.subscriptionStartDate} au ${subscription.subscriptionEndDate} (${subscription.daysSubscribed} jours)`;
+
 
   // ═══════════════════════════════════════════════════════════════════════════
   // 1. EN-TÊTE — logo + titre FACTURE
   // ═══════════════════════════════════════════════════════════════════════════
 
-  
-// Déterminer quel logo utiliser : celui passé en option ou celui par défaut
-const logoToUse = options.logoBase64 || GBA_LOGO_BASE64;
+  // Déterminer quel logo utiliser : celui passé en option ou celui par défaut
+  const logoToUse = options.logoBase64 || GBA_LOGO_BASE64;
 
-if (logoToUse) {
-  try {
-    // Utilisation impérative du format 'JPEG' car votre base64 commence par data:image/jpeg
-    doc.addImage(logoToUse, 'JPEG', MARGIN, 10, 45, 20);
-  } catch (e) {
-    console.error("Erreur lors de l'insertion du logo:", e);
+  if (logoToUse) {
+    try {
+      // Utilisation impérative du format 'JPEG' car votre base64 commence par data:image/jpeg
+      doc.addImage(logoToUse, 'JPEG', MARGIN, 10, 45, 20);
+    } catch (e) {
+      console.error("Erreur lors de l'insertion du logo:", e);
+    }
+  } else {
+    // Ce bloc ne s'exécutera que si GBA_LOGO_BASE64 est aussi vide
+    doc.setFillColor(...COLORS.lightGray);
+    doc.roundedRect(MARGIN, 12, 40, 20, 2, 2, 'F');
   }
-} else {
-  // Ce bloc ne s'exécutera que si GBA_LOGO_BASE64 est aussi vide
-  doc.setFillColor(...COLORS.lightGray);
-  doc.roundedRect(MARGIN, 12, 40, 20, 2, 2, 'F');
-}
-
 
   // Titre "Facture" (droite) – grande police
   doc.setFontSize(36);
@@ -137,22 +137,21 @@ if (logoToUse) {
   doc.setFontSize(11);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(...COLORS.dark);
- doc.text("Giselle Brand Agency", MARGIN, leftY);
+  doc.text("Giselle Brand Agency", MARGIN, leftY);
 
   leftY += 5;
-    doc.setFontSize(8);
-    doc.setFont('helvetica', 'normal');
-    doc.setTextColor(...COLORS.gray);
+  doc.setFontSize(8);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(...COLORS.gray);
   
-doc.text("Entreprise Individuelle", MARGIN, leftY);
-    leftY += 4;
-    doc.setFontSize(8);
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(...COLORS.dark);
+  doc.text("Entreprise Individuelle", MARGIN, leftY);
+  leftY += 4;
+  doc.setFontSize(8);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(...COLORS.dark);
   
-doc.text("SIREN/SIRET : 999327844", MARGIN, leftY);
-    leftY += 5;
-
+  doc.text("SIREN/SIRET : 999327844", MARGIN, leftY);
+  leftY += 5;
 
   // — Méta-données (date / n° / id client) —
   const META_LABEL_X = PW - MARGIN - 55;
@@ -161,8 +160,7 @@ doc.text("SIREN/SIRET : 999327844", MARGIN, leftY);
   const metaRows: [string, string][] = [
     ['Date :', formatDate(subscription.paymentDate)],
     ['Facture # :', invoiceNumber],
-   // ['ID Client :', subscription.offerName],
-   ['Client :', tenant.companyName],
+    ['Client :', tenant.companyName],
   ];
 
   for (const [label, value] of metaRows) {
@@ -217,7 +215,7 @@ doc.text("SIREN/SIRET : 999327844", MARGIN, leftY);
 
   // Ligne de données
   const paymentCondition = _mapPaymentMethod(subscription.paymentMethod);
-  const dueDate = formatDate(subscription.subscriptionEndDate);
+  const dueDate = formatDate(subscription.paymentDate);
 
   _drawTableRow(doc, MARGIN, TABLE1_Y + ROW_H, TABLE1_COLS, [
     tenant.companyName,
@@ -238,7 +236,7 @@ doc.text("SIREN/SIRET : 999327844", MARGIN, leftY);
   // Ligne de prestation
   _drawTableRow(doc, MARGIN, TABLE2_Y + ROW_H, TABLE2_COLS, [
     '1',
-    //description,
+    description,
     subscription.offerName,
     formatCurrency(amount),
     formatCurrency(amount),
@@ -250,10 +248,9 @@ doc.text("SIREN/SIRET : 999327844", MARGIN, leftY);
 
   const TOTAL_Y = TABLE2_Y + ROW_H * 2 + 4;
 
-
   // Dans la section 6. BLOC TOTAUX
-const TOTAL_VALUE_X = PW - MARGIN; // Reste correct (195mm)
-const TOTAL_LABEL_X = TOTAL_VALUE_X - 35; // Aligné sur la colonne TOTAL
+  const TOTAL_VALUE_X = PW - MARGIN; // Reste correct (195mm)
+  const TOTAL_LABEL_X = TOTAL_VALUE_X - 35; // Aligné sur la colonne TOTAL
 
   const totalsRows: [string, string, boolean][] = [
     ['Total HT', formatCurrency(amount), false],
@@ -313,9 +310,7 @@ const TOTAL_LABEL_X = TOTAL_VALUE_X - 35; // Aligné sur la colonne TOTAL
 
   // Coordonnées
   const footerParts: string[] = [];
- // if (tenant.address1) footerParts.push(tenant.address1);
- footerParts.push("Giselle Brand Agency - Palavas-Les-Flots - hello.gisellebrandagency@outlook.fr");
-
+  footerParts.push("Giselle Brand Agency - Palavas-Les-Flots - hello.gisellebrandagency@outlook.fr");
 
   doc.setFontSize(8);
   doc.setFont('helvetica', 'normal');
@@ -326,6 +321,7 @@ const TOTAL_LABEL_X = TOTAL_VALUE_X - 35; // Aligné sur la colonne TOTAL
   // 9. TÉLÉCHARGEMENT
   // ═══════════════════════════════════════════════════════════════════════════
 
+  // ✅ CHANGEMENT : Utilise functional_id dans le nom du fichier
   const filename = `Facture_${invoiceNumber}_${subscription.offerName.replace(/\s+/g, '_')}.pdf`;
   doc.save(filename);
 }
@@ -361,47 +357,6 @@ function _drawTableHeader(
     cx += cols[i];
   }
 }
-/*
-function _drawTableRow(
-  doc: jsPDF,
-  x: number,
-  y: number,
-  cols: number[],
-  values: string[]
-): void {
-  const ROW_H = 8;
-  let cx = x;
-
-  for (let i = 0; i < cols.length; i++) {
-    // Fond blanc léger
-    doc.setFillColor(...COLORS.white);
-    doc.rect(cx, y, cols[i], ROW_H, 'F');
-
-    // Bordure fine
-    doc.setDrawColor(220, 220, 220);
-    doc.setLineWidth(0.15);
-    doc.rect(cx, y, cols[i], ROW_H, 'S');
-
-    // Texte (avec wrap si nécessaire)
-    doc.setFontSize(8.5);
-    doc.setFont('helvetica', 'normal');
-    doc.setTextColor(...COLORS.dark);
-
-    const align = i === 0 ? 'center' : i >= cols.length - 2 ? 'right' : 'left';
-    const textX =
-      align === 'center' ? cx + cols[i] / 2 : align === 'right' ? cx + cols[i] - 2 : cx + 2;
-
-    // Wrap sur la colonne description (index 1 dans le 2e tableau)
-    if (values[i].length > 30 && cols[i] > 50) {
-      const lines = doc.splitTextToSize(values[i], cols[i] - 4);
-      doc.text(lines[0], textX, y + 5.2, { align });
-    } else {
-      doc.text(values[i], textX, y + 5.2, { align });
-    }
-
-    cx += cols[i];
-  }
-}*/
 
 function _drawTableRow(
   doc: jsPDF,
