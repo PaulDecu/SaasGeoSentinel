@@ -17,7 +17,7 @@ interface AuthState {
 
 export const useAuthStore = create<AuthState>((set) => ({
   user: null,
-  isLoading: true,
+  isLoading: false,
   isAuthenticated: false,
 
   login: async (credentials) => {
@@ -43,9 +43,12 @@ export const useAuthStore = create<AuthState>((set) => ({
       const user = await profileApi.getProfile();
       set({ user, isAuthenticated: true, isLoading: false });
     } catch (error) {
+      console.error("Échec du chargement de l'utilisateur:", error);
       set({ user: null, isAuthenticated: false, isLoading: false });
       setAccessToken(null);
-    }
+    }finally {
+    set({ isLoading: false }); // S'exécute toujours, même en cas d'erreur
+  }
   },
 
   setUser: (user) => {

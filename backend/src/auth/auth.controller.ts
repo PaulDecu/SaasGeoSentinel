@@ -20,6 +20,12 @@ import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { User } from '../users/entities/user.entity';
 
+// En développement cross-origin (front :3001 / back :3000), 'strict' bloque
+// les cookies car le navigateur considère les ports différents comme cross-site.
+// 'lax' les autorise. En production (même domaine), on repasse à 'strict'.
+const COOKIE_SAME_SITE = process.env.NODE_ENV === 'production' ? 'strict' : 'lax';
+const COOKIE_SECURE = process.env.NODE_ENV === 'production';
+
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
@@ -29,11 +35,10 @@ export class AuthController {
   async login(@Body() loginDto: LoginDto, @Res({ passthrough: true }) res: Response) {
     const result = await this.authService.login(loginDto);
 
-    // Stocker le refresh token dans un cookie httpOnly
     res.cookie('refreshToken', result.refreshToken, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
+      secure: COOKIE_SECURE,
+      sameSite: COOKIE_SAME_SITE,
       maxAge: 30 * 24 * 60 * 60 * 1000, // 30 jours
     });
 
@@ -67,11 +72,10 @@ export class AuthController {
 
     const result = await this.authService.refresh(refreshToken);
 
-    // Mettre à jour le cookie avec le nouveau refresh token
     res.cookie('refreshToken', result.refreshToken, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
+      secure: COOKIE_SECURE,
+      sameSite: COOKIE_SAME_SITE,
       maxAge: 30 * 24 * 60 * 60 * 1000,
     });
 
@@ -82,18 +86,29 @@ export class AuthController {
   }
 
   @Post('logout')
-  @UseGuards(JwtAuthGuard)
-  @HttpCode(HttpStatus.OK)
+  @HttpCode(HttpStatus.OK) // ✅ Retiré JwtAuthGuard : le logout doit toujours réussir
   async logout(
-    @CurrentUser() user: User,
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ) {
     const refreshToken = req.cookies?.refreshToken;
-    await this.authService.logout(user.id, refreshToken);
 
-    // Supprimer le cookie
-    res.clearCookie('refreshToken');
+    // Révoquer le refresh token si présent
+    // logout(userId, refreshToken?) : si refreshToken fourni, userId n'est pas utilisé
+    if (refreshToken) {
+      try {
+        await this.authService.logout('', refreshToken);
+      } catch {
+        // Ignorer : token déjà révoqué ou invalide
+      }
+    }
+
+    // Toujours supprimer le cookie, quelle que soit la situation
+    res.clearCookie('refreshToken', {
+      httpOnly: true,
+      secure: COOKIE_SECURE,
+      sameSite: COOKIE_SAME_SITE,
+    });
 
     return { message: 'Déconnexion réussie' };
   }

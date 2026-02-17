@@ -2,12 +2,13 @@ import { create } from 'zustand';
 import { User, LoginCredentials } from '@/types';
 import { authApi, profileApi } from '@/lib/api/auth';
 import { setAccessToken } from '@/lib/api/client';
+import { useSubscriptionStore } from '@/lib/stores/subscription';
 
 interface AuthState {
   user: User | null;
   isLoading: boolean;
   isAuthenticated: boolean;
-  
+
   // Actions
   login: (credentials: LoginCredentials) => Promise<void>;
   logout: () => Promise<void>;
@@ -27,12 +28,14 @@ export const useAuthStore = create<AuthState>((set) => ({
   },
 
   logout: async () => {
+    // Vider le token local en premier pour bloquer tout appel authentifié
+    setAccessToken(null);
     try {
       await authApi.logout();
-    } catch (error) {
-      // Ignorer les erreurs de logout
+    } catch {
+      // Ignorer toutes les erreurs (token expiré, réseau, etc.)
     } finally {
-      setAccessToken(null);
+      useSubscriptionStore.getState().reset();
       set({ user: null, isAuthenticated: false });
     }
   },
@@ -46,9 +49,9 @@ export const useAuthStore = create<AuthState>((set) => ({
       console.error("Échec du chargement de l'utilisateur:", error);
       set({ user: null, isAuthenticated: false, isLoading: false });
       setAccessToken(null);
-    }finally {
-    set({ isLoading: false }); // S'exécute toujours, même en cas d'erreur
-  }
+    } finally {
+      set({ isLoading: false });
+    }
   },
 
   setUser: (user) => {

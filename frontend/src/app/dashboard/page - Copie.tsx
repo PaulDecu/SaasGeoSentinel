@@ -46,7 +46,7 @@ export default function DashboardPage() {
 
         {/* ✅ Message Dashboard Global */}
         {dashboardMessage && !loadingMessage && (
-          <div className="bg-gradient-to-r from-amber-400 to-orange-500 rounded-xl shadow-lg p-6 text-white animate-pulse-slow">
+          <div className="bg-gradient-to-r from-amber-400 to-orange-500 rounded-xl shadow-lg p-6 text-white">
             <div className="flex items-start gap-4">
               <div className="text-4xl">📢</div>
               <div className="flex-1">
