@@ -5,17 +5,43 @@ import { AuthLayout } from '@/components/layouts/AuthLayout';
 import { Card, Spinner, Button } from '@/components/ui';
 import { useRequireAuth } from '@/lib/hooks/useAuth';
 import { UserRole, Subscription, SubscriptionStats } from '@/types';
-import { subscriptionsApi } from '@/lib/api/resources';
+import { subscriptionsApi, tenantsApi } from '@/lib/api/resources';
 import { getErrorMessage } from '@/lib/api/client';
+import { generateInvoicePdf } from '@/lib/utils/generateInvoicePdf';
 import toast from 'react-hot-toast';
 import Link from 'next/link';
 
+// ─── Interface TenantInfo pour la facturation ──────────────────────────────────
+interface TenantInfo {
+  companyName: string;
+  legalStatus?: string;
+  siren?: string;
+  address?: string;
+  email?: string;
+  contactName?: string;
+  vatMention?: string;
+  logoBase64?: string;
+}
+
+// ─── Informations prestataire par défaut ──────────────────────────────────────
+const DEFAULT_TENANT_INFO: TenantInfo = {
+  companyName: 'raison sociale du client',
+  legalStatus: 'Status du client',
+  siren: 'siren du client',
+  address: 'adresse du client',
+  email: 'mail du client',
+  contactName: 'nom contact client',
+};
+// ─────────────────────────────────────────────────────────────────────────────
+
 export default function MySubscriptionsPage() {
   const { user } = useRequireAuth([UserRole.ADMIN]);
-  
+
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
   const [stats, setStats] = useState<SubscriptionStats | null>(null);
+  const [tenantInfo, setTenantInfo] = useState<TenantInfo>(DEFAULT_TENANT_INFO);
   const [isLoading, setIsLoading] = useState(true);
+  const [generatingId, setGeneratingId] = useState<number | null>(null);
 
   useEffect(() => {
     loadData();
@@ -24,32 +50,97 @@ export default function MySubscriptionsPage() {
   const loadData = async () => {
     setIsLoading(true);
     try {
-      const [subsData, statsData] = await Promise.all([
+      console.log('🔄 Début du chargement des données...');
+      
+      const [subsData, statsData, tenantData] = await Promise.all([
         subscriptionsApi.getMySubscriptions(),
         subscriptionsApi.getStats(),
+        tenantsApi.getTenantInfo(),
       ]);
+      
+      console.log('✅ Données reçues:');
+      console.log('- subscriptions:', subsData);
+      console.log('- stats:', statsData);
+      console.log('- tenant:', tenantData);
+      
       setSubscriptions(subsData);
       setStats(statsData);
+      
+      // Vérifier la structure des données tenant
+      if (!tenantData || typeof tenantData !== 'object') {
+        throw new Error('Données tenant invalides');
+      }
+      
+      // Transformer les données tenant pour correspondre à TenantInfo
+      const fullAddress1 = [
+        tenantData.addressLine1,
+        tenantData.addressLine2,
+      ].filter(Boolean).join(', ');
+
+      const fullAddress2 = [
+        tenantData.postalCode,
+        tenantData.city,
+        tenantData.country
+      ].filter(Boolean).join(', ');
+
+      const transformedTenantInfo = {
+        companyName: tenantData.companyName || 'Nom non défini',
+        legalStatus: '', // Valeur par défaut, à adapter
+        siren: tenantData.siren || '',
+        address1: fullAddress1 || '',
+        address2: fullAddress2 || '',
+        email: tenantData.contactEmail || '',
+        contactName: '', // Valeur par défaut, à adapter
+      };
+      
+      console.log('🏢 Infos tenant transformées:', transformedTenantInfo);
+      setTenantInfo(transformedTenantInfo);
+      
     } catch (error) {
+      console.error('❌ Erreur détaillée:', error);
+      console.error('❌ Message d\'erreur:', error.message);
+      console.error('❌ Stack trace:', error.stack);
+      
       toast.error(getErrorMessage(error));
+      // En cas d'erreur, garder les valeurs par défaut
+      console.warn('⚠️ Impossible de charger les infos tenant, utilisation des valeurs par défaut');
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleGenerateInvoice = (subscription: Subscription) => {
-    toast('Fonctionnalité de génération de facture en cours de développement', {
-      icon: '🚧',
-    });
+  // ── Génération PDF ──────────────────────────────────────────────────────────
+  const handleGenerateInvoice = async (subscription: Subscription) => {
+    setGeneratingId(subscription.id);
+    try {
+      // On importe jsPDF de façon dynamique pour éviter d'alourdir le bundle SSR
+      await import('jspdf'); // pré-chargement
+
+      // Personnalisation du numéro de facture : AAAA-NNN
+      const year = new Date(subscription.paymentDate).getFullYear();
+      const invoiceNumber = `${year}-${String(subscription.id).padStart(3, '0')}`;
+
+      generateInvoicePdf(subscription, tenantInfo, { invoiceNumber });
+
+      toast.success('Facture générée et téléchargée avec succès !', {
+        icon: '📄',
+      });
+    } catch (error) {
+      console.error('Erreur génération PDF :', error);
+      toast.error('Impossible de générer la facture. Vérifiez que jsPDF est installé.');
+    } finally {
+      setGeneratingId(null);
+    }
   };
 
+  // ── Badge statut ────────────────────────────────────────────────────────────
   const getStatusBadge = (subscription: Subscription) => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    
+
     const startDate = new Date(subscription.subscriptionStartDate);
     startDate.setHours(0, 0, 0, 0);
-    
+
     const endDate = new Date(subscription.subscriptionEndDate);
     endDate.setHours(0, 0, 0, 0);
 
@@ -96,9 +187,7 @@ export default function MySubscriptionsPage() {
             </p>
           </div>
           <Link href="/my-offer">
-            <Button className="btn-neon">
-              ← Retour à Mon Offre
-            </Button>
+            <Button className="btn-neon">← Retour à Mon Offre</Button>
           </Link>
         </div>
 
@@ -110,7 +199,9 @@ export default function MySubscriptionsPage() {
                 <div className="text-4xl">📊</div>
                 <div>
                   <p className="text-sm text-slate-600">Total abonnements</p>
-                  <p className="text-2xl font-black text-slate-900">{stats.totalSubscriptions}</p>
+                  <p className="text-2xl font-black text-slate-900">
+                    {stats.totalSubscriptions}
+                  </p>
                 </div>
               </div>
             </Card>
@@ -132,12 +223,12 @@ export default function MySubscriptionsPage() {
                 <div className="text-4xl">📅</div>
                 <div>
                   <p className="text-sm text-slate-600">Total jours</p>
-                  <p className="text-2xl font-black text-slate-900">{stats.totalDaysSubscribed}</p>
+                  <p className="text-2xl font-black text-slate-900">
+                    {stats.totalDaysSubscribed}
+                  </p>
                 </div>
               </div>
             </Card>
-
-
           </div>
         )}
 
@@ -147,16 +238,15 @@ export default function MySubscriptionsPage() {
             <div className="text-6xl mb-4">📋</div>
             <p className="text-slate-600 mb-4">Aucun abonnement enregistré</p>
             <Link href="/dashboard/my-offer">
-              <Button className="btn-neon">
-                Renouveler mon abonnement
-              </Button>
+              <Button className="btn-neon">Renouveler mon abonnement</Button>
             </Link>
           </Card>
         ) : (
           <div className="grid gap-4">
             {subscriptions.map((subscription) => {
               const price = Number(subscription.paymentAmount) || 0;
-              
+              const isGenerating = generatingId === subscription.id;
+
               return (
                 <Card key={subscription.id} className="card-premium">
                   <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -211,8 +301,15 @@ export default function MySubscriptionsPage() {
                         onClick={() => handleGenerateInvoice(subscription)}
                         className="btn-primary"
                         size="sm"
+                        disabled={isGenerating}
                       >
-                        📄 Générer ma facture
+                        {isGenerating ? (
+                          <span className="flex items-center gap-2">
+                            <Spinner size="sm" /> Génération…
+                          </span>
+                        ) : (
+                          '📄 Générer ma facture'
+                        )}
                       </Button>
                     </div>
                   </div>
@@ -234,15 +331,24 @@ export default function MySubscriptionsPage() {
             </li>
             <li className="flex items-start gap-2">
               <span className="text-primary-600 font-bold">•</span>
-              <span>Vous pouvez générer une facture pour chaque abonnement</span>
+              <span>
+                Cliquez sur <strong>Générer ma facture</strong> pour télécharger
+                automatiquement le PDF correspondant à chaque abonnement
+              </span>
             </li>
             <li className="flex items-start gap-2">
               <span className="text-primary-600 font-bold">•</span>
-              <span>Les abonnements ne peuvent pas se chevaucher - chaque abonnement commence après le précédent</span>
+              <span>
+                Les abonnements ne peuvent pas se chevaucher — chaque abonnement
+                commence après le précédent
+              </span>
             </li>
             <li className="flex items-start gap-2">
               <span className="text-primary-600 font-bold">•</span>
-              <span>Pour renouveler votre abonnement, retournez sur la page "Mon Offre"</span>
+              <span>
+                Pour renouveler votre abonnement, retournez sur la page{' '}
+                <strong>Mon Offre</strong>
+              </span>
             </li>
           </ul>
         </div>

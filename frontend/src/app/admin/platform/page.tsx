@@ -135,6 +135,12 @@ const onCreateTenant = async (data: any) => {
       subscriptionEnd: tenant.subscriptionEnd 
         ? new Date(tenant.subscriptionEnd).toISOString().split('T')[0] 
         : '',
+      addressLine1: tenant.addressLine1 || '',
+      addressLine2: tenant.addressLine2 || '',
+      postalCode: tenant.postalCode || '',
+      city: tenant.city || '',
+      country: tenant.country || '',
+      siren: tenant.siren || '',
     });
   };
 
@@ -441,6 +447,50 @@ const onCreateTenant = async (data: any) => {
                       className="input-tech"
                     />
                   </div>
+                  <Input
+                    label="SIREN / SIRET (optionnel)"
+                    {...tenantForm.register('siren')}
+                    error={tenantForm.formState.errors.siren?.message}
+                    placeholder="123456789 ou 12345678900012"
+                    className="input-tech"
+                  />
+                  <Input
+                    label="Adresse ligne 1 (optionnel)"
+                    {...tenantForm.register('addressLine1')}
+                    error={tenantForm.formState.errors.addressLine1?.message}
+                    placeholder="15 rue de la Paix"
+                    className="input-tech"
+                  />
+                  <Input
+                    label="Adresse ligne 2 (optionnel)"
+                    {...tenantForm.register('addressLine2')}
+                    error={tenantForm.formState.errors.addressLine2?.message}
+                    placeholder="Bâtiment A, Étage 3"
+                    className="input-tech"
+                  />
+                  <div className="grid grid-cols-3 gap-4">
+                    <Input
+                      label="Code postal (optionnel)"
+                      {...tenantForm.register('postalCode')}
+                      error={tenantForm.formState.errors.postalCode?.message}
+                      placeholder="75001"
+                      className="input-tech"
+                    />
+                    <Input
+                      label="Ville (optionnel)"
+                      {...tenantForm.register('city')}
+                      error={tenantForm.formState.errors.city?.message}
+                      placeholder="Paris"
+                      className="input-tech"
+                    />
+                    <Input
+                      label="Pays (optionnel)"
+                      {...tenantForm.register('country')}
+                      error={tenantForm.formState.errors.country?.message}
+                      placeholder="France"
+                      className="input-tech"
+                    />
+                  </div>
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1">
                       Offre
@@ -497,6 +547,50 @@ const onCreateTenant = async (data: any) => {
                             label="Téléphone"
                             {...editTenantForm.register('contactPhone')}
                             error={editTenantForm.formState.errors.contactPhone?.message}
+                            className="input-tech"
+                          />
+                        </div>
+                        <Input
+                          label="SIREN / SIRET (optionnel)"
+                          {...editTenantForm.register('siren')}
+                          error={editTenantForm.formState.errors.siren?.message}
+                          placeholder="123456789 ou 12345678900012"
+                          className="input-tech"
+                        />
+                        <Input
+                          label="Adresse ligne 1 (optionnel)"
+                          {...editTenantForm.register('addressLine1')}
+                          error={editTenantForm.formState.errors.addressLine1?.message}
+                          placeholder="15 rue de la Paix"
+                          className="input-tech"
+                        />
+                        <Input
+                          label="Adresse ligne 2 (optionnel)"
+                          {...editTenantForm.register('addressLine2')}
+                          error={editTenantForm.formState.errors.addressLine2?.message}
+                          placeholder="Bâtiment A, Étage 3"
+                          className="input-tech"
+                        />
+                        <div className="grid grid-cols-3 gap-4">
+                          <Input
+                            label="Code postal (optionnel)"
+                            {...editTenantForm.register('postalCode')}
+                            error={editTenantForm.formState.errors.postalCode?.message}
+                            placeholder="75001"
+                            className="input-tech"
+                          />
+                          <Input
+                            label="Ville (optionnel)"
+                            {...editTenantForm.register('city')}
+                            error={editTenantForm.formState.errors.city?.message}
+                            placeholder="Paris"
+                            className="input-tech"
+                          />
+                          <Input
+                            label="Pays (optionnel)"
+                            {...editTenantForm.register('country')}
+                            error={editTenantForm.formState.errors.country?.message}
+                            placeholder="France"
                             className="input-tech"
                           />
                         </div>
@@ -565,6 +659,16 @@ const onCreateTenant = async (data: any) => {
                               📧 {tenant.contactEmail}
                               {tenant.contactPhone && ` • 📞 ${tenant.contactPhone}`}
                             </p>
+                            {tenant.siren && (
+                              <p className="text-slate-600 text-sm">
+                                🏛️ SIREN/SIRET : <span className="font-mono">{tenant.siren}</span>
+                              </p>
+                            )}
+                            {(tenant.addressLine1 || tenant.postalCode || tenant.city || tenant.country) && (
+                              <p className="text-slate-600 text-sm">
+                                📍 {[tenant.addressLine1, tenant.addressLine2, tenant.postalCode, tenant.city, tenant.country].filter(Boolean).join(', ')}
+                              </p>
+                            )}
                             {tenant.offer && (
                               <p className="text-slate-600 text-sm mt-1">
                                 Offre : <span className="font-bold text-primary-600">{tenant.offer.name}</span>

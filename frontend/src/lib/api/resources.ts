@@ -81,6 +81,31 @@ export const tenantsApi = {
     const { data } = await apiClient.post<User>(`/tenants/${tenantId}/admins`, adminData);
     return data;
   },
+
+  // ✅ NOUVELLES MÉTHODES AJOUTÉES
+  getSubscriptionStatus: async (): Promise<{
+    isValid: boolean;
+    subscriptionEnd: string | null;
+    daysRemaining: number;
+  }> => {
+    const { data } = await apiClient.get('/tenants/subscription-status');
+    return data;
+  },
+
+  getTenantInfo: async (): Promise<{
+    companyName: string;
+    contactEmail: string;
+    contactPhone?: string | null;
+    addressLine1?: string | null;
+    addressLine2?: string | null;
+    postalCode?: string | null;
+    city?: string | null;
+    country?: string | null;
+    siren?: string | null;
+  }> => {
+    const { data } = await apiClient.get('/tenants/me');
+    return data;
+  },
 };
 
 // Offers API

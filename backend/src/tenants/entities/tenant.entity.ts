@@ -47,6 +47,24 @@ export class Tenant {
   @Column({ name: 'subscription_end', type: 'timestamp', nullable: true })
   subscriptionEnd: Date | null;
 
+  @Column({ type: 'varchar', name: 'address_line1', length: 255, nullable: true })
+  addressLine1: string | null;
+
+  @Column({ type: 'varchar', name: 'address_line2', length: 255, nullable: true })
+  addressLine2: string | null;
+
+  @Column({ type: 'varchar', name: 'postal_code', length: 20, nullable: true })
+  postalCode: string | null;
+
+  @Column({ type: 'varchar', length: 100, nullable: true })
+  city: string | null;
+
+  @Column({ type: 'varchar', length: 100, nullable: true })
+  country: string | null;
+
+  @Column({ type: 'varchar', length: 14, nullable: true })
+  siren: string | null;
+
   @Column({ type: 'jsonb', default: {} })
   metadata: Record<string, any>;
 

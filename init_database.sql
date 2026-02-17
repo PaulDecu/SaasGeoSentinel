@@ -536,3 +536,22 @@ JOIN offers o ON s.offer_id = o.id
 ORDER BY s.payment_date DESC;
 
 COMMENT ON VIEW subscriptions_with_details IS 'Vue enrichie des abonnements avec les détails du tenant et de l''offre';
+
+
+
+-- Migration : Ajout des champs adresse et SIREN à la table tenants
+ALTER TABLE tenants
+  ADD COLUMN IF NOT EXISTS address_line1 VARCHAR(255),
+  ADD COLUMN IF NOT EXISTS address_line2 VARCHAR(255),
+  ADD COLUMN IF NOT EXISTS postal_code   VARCHAR(20),
+  ADD COLUMN IF NOT EXISTS city          VARCHAR(100),
+  ADD COLUMN IF NOT EXISTS country       VARCHAR(100),
+  ADD COLUMN IF NOT EXISTS siren         VARCHAR(14);
+
+-- Contrainte optionnelle : format SIREN (9 chiffres) ou SIRET (14 chiffres)
+ALTER TABLE tenants
+  ADD CONSTRAINT valid_siren
+    CHECK (siren IS NULL OR siren ~ '^[0-9]{9}([0-9]{5})?$');
+
+-- Mise à jour du timestamp updated_at automatiquement (si trigger existant)
+-- Si vous n'avez pas de trigger, les UPDATE le feront via TypeORM.

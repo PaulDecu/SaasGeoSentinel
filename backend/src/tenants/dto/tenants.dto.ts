@@ -13,6 +13,30 @@ export class CreateTenantDto {
 
   @IsUUID()
   offerId: string;
+
+  @IsString()
+  @IsOptional()
+  addressLine1?: string;
+
+  @IsString()
+  @IsOptional()
+  addressLine2?: string;
+
+  @IsString()
+  @IsOptional()
+  postalCode?: string;
+
+  @IsString()
+  @IsOptional()
+  city?: string;
+
+  @IsString()
+  @IsOptional()
+  country?: string;
+
+  @IsString()
+  @IsOptional()
+  siren?: string;
 }
 
 export class UpdateTenantDto {
@@ -40,6 +64,30 @@ export class UpdateTenantDto {
   @IsDateString()
   @IsOptional()
   subscriptionEnd?: string;
+
+  @IsString()
+  @IsOptional()
+  addressLine1?: string;
+
+  @IsString()
+  @IsOptional()
+  addressLine2?: string;
+
+  @IsString()
+  @IsOptional()
+  postalCode?: string;
+
+  @IsString()
+  @IsOptional()
+  city?: string;
+
+  @IsString()
+  @IsOptional()
+  country?: string;
+
+  @IsString()
+  @IsOptional()
+  siren?: string;
 }
 
 export class CreateTenantAdminDto {

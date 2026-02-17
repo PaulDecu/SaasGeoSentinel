@@ -63,6 +63,29 @@ export class TenantsController {
     };
   }
 
+  // 🆕 NOUVELLE ROUTE : Récupérer les infos du tenant connecté
+  @Get('me')
+  @Roles(UserRole.ADMIN, UserRole.GESTIONNAIRE, UserRole.UTILISATEUR)
+  async getMyTenantInfo(@CurrentUser() user: User) {
+    if (!user.tenantId) {
+      throw new ForbiddenException('Aucun tenant associé à cet utilisateur');
+    }
+    
+    const tenant = await this.tenantsService.findOne(user.tenantId);
+    
+    return {
+      companyName: tenant.companyName,
+      contactEmail: tenant.contactEmail,
+      contactPhone: tenant.contactPhone,
+      addressLine1: tenant.addressLine1,
+      addressLine2: tenant.addressLine2,
+      postalCode: tenant.postalCode,
+      city: tenant.city,
+      country: tenant.country,
+      siren: tenant.siren,
+    };
+  }
+
   @Post()
   @Roles(UserRole.SUPERADMIN)
   create(@Body() createTenantDto: CreateTenantDto, @CurrentUser() user: User) {
@@ -70,7 +93,7 @@ export class TenantsController {
   }
 
   @Get()
-  @Roles(UserRole.SUPERADMIN)
+  @Roles(UserRole.SUPERADMIN, UserRole.ADMIN)
   findAll() {
     return this.tenantsService.findAll();
   }
@@ -84,6 +107,8 @@ export class TenantsController {
         throw new ForbiddenException(
           'Vous ne pouvez accéder qu\'à votre propre tenant',
         );
+        console.log(user.tenant);
+        console.log(id);
       }
     }
     

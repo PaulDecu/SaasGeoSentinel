@@ -60,6 +60,13 @@ export const createTenantSchema = z.object({
   contactPhone: z.string().optional(),
   offerId: z.string().uuid('Offre invalide'),
   subscriptionEnd: z.string().optional(),
+  // ✅ NOUVEAUX CHAMPS ADRESSE/SIREN
+  addressLine1: z.string().optional(),
+  addressLine2: z.string().optional(),
+  postalCode: z.string().optional(),
+  city: z.string().optional(),
+  country: z.string().optional(),
+  siren: z.string().regex(/^[0-9]{9}([0-9]{5})?$/, 'Format SIREN/SIRET invalide (9 ou 14 chiffres)').optional(),
 });
 
 export const createTenantAdminSchema = z.object({
@@ -76,6 +83,13 @@ export const updateTenantSchema = z.object({
   // ✅ IMPORTANT : Ajouter les champs de dates
   subscriptionStart: z.string().optional(),
   subscriptionEnd: z.string().optional(),
+  // ✅ NOUVEAUX CHAMPS ADRESSE/SIREN
+  addressLine1: z.string().optional(),
+  addressLine2: z.string().optional(),
+  postalCode: z.string().optional(),
+  city: z.string().optional(),
+  country: z.string().optional(),
+  siren: z.string().regex(/^[0-9]{9}([0-9]{5})?$/, 'Format SIREN/SIRET invalide (9 ou 14 chiffres)').optional(),
 });
 
 export type UpdateTenantInput = z.infer<typeof updateTenantSchema>;

@@ -52,6 +52,12 @@ export class TenantsService {
       contactEmail: createTenantDto.contactEmail,
       contactPhone: createTenantDto.contactPhone,
       offerId: createTenantDto.offerId,
+      addressLine1: createTenantDto.addressLine1,
+      addressLine2: createTenantDto.addressLine2,
+      postalCode: createTenantDto.postalCode,
+      city: createTenantDto.city,
+      country: createTenantDto.country,
+      siren: createTenantDto.siren,
       subscriptionStart,
       subscriptionEnd,
       metadata: {}, // Initialiser metadata vide
@@ -146,6 +152,12 @@ export class TenantsService {
     if (updateTenantDto.contactEmail) tenant.contactEmail = updateTenantDto.contactEmail;
     if (updateTenantDto.contactPhone !== undefined) tenant.contactPhone = updateTenantDto.contactPhone;
     if (updateTenantDto.offerId) tenant.offerId = updateTenantDto.offerId;
+    if (updateTenantDto.addressLine1 !== undefined) tenant.addressLine1 = updateTenantDto.addressLine1;
+    if (updateTenantDto.addressLine2 !== undefined) tenant.addressLine2 = updateTenantDto.addressLine2;
+    if (updateTenantDto.postalCode !== undefined) tenant.postalCode = updateTenantDto.postalCode;
+    if (updateTenantDto.city !== undefined) tenant.city = updateTenantDto.city;
+    if (updateTenantDto.country !== undefined) tenant.country = updateTenantDto.country;
+    if (updateTenantDto.siren !== undefined) tenant.siren = updateTenantDto.siren;
 
     const updatedTenant = await this.tenantRepository.save(tenant);
 
