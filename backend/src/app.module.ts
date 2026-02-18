@@ -15,6 +15,8 @@ import { ProfileModule } from './profile/profile.module';
 import { AuditModule } from './audit/audit.module';
 import { SystemSettingsModule } from './system-settings/system-settings.module'; // ✅ AJOUTÉ
 import { SubscriptionsModule } from './subscriptions/subscriptions.module';
+import { PaymentModule } from './payment/payment.module';
+
 
 // Entities
 import { User } from './users/entities/user.entity';
@@ -71,6 +73,7 @@ import { Subscription } from './subscriptions/entities/subscription.entity'; // 
     AuditModule,
     SystemSettingsModule, // ✅ AJOUTÉ
     SubscriptionsModule,
+    PaymentModule,
   ],
   providers: [
     {

@@ -5,19 +5,21 @@ import { UserRole } from '@/types';
 
 export const useAuth = (requiredRoles?: UserRole[]) => {
   const router = useRouter();
-  const { user, isLoading, isAuthenticated, loadUser } = useAuthStore();
+  const { user, isLoading, isAuthenticated, hasAttemptedLoad, loadUser } = useAuthStore();
 
   useEffect(() => {
-    if (!isAuthenticated && !isLoading) {
+    // Appeler loadUser uniquement si pas encore tenté
+    if (!isAuthenticated && !isLoading && !hasAttemptedLoad) {
       loadUser();
     }
-  }, [isAuthenticated, isLoading, loadUser]);
+  }, [isAuthenticated, isLoading, hasAttemptedLoad, loadUser]);
 
   useEffect(() => {
-    if (!isLoading && !isAuthenticated) {
+    // ✅ Rediriger seulement APRÈS que loadUser ait été tenté (hasAttemptedLoad)
+    if (!isLoading && !isAuthenticated && hasAttemptedLoad) {
       router.push('/login');
     }
-  }, [isLoading, isAuthenticated, router]);
+  }, [isLoading, isAuthenticated, hasAttemptedLoad, router]);
 
   useEffect(() => {
     if (!isLoading && isAuthenticated && requiredRoles && user) {

@@ -1,15 +1,15 @@
 {
   "pages": {
+    "/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/page.js"
+    ],
     "/layout": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
       "static/css/app/layout.css",
       "static/chunks/app/layout.js"
-    ],
-    "/dashboard/my-subscriptions/page": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/dashboard/my-subscriptions/page.js"
     ],
     "/login/page": [
       "static/chunks/webpack.js",
@@ -26,15 +26,15 @@
       "static/chunks/main-app.js",
       "static/chunks/app/my-offer/page.js"
     ],
-    "/page": [
+    "/dashboard/my-subscriptions/payment-result/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/page.js"
+      "static/chunks/app/dashboard/my-subscriptions/payment-result/page.js"
     ],
-    "/admin/platform/page": [
+    "/dashboard/my-subscriptions/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/admin/platform/page.js"
+      "static/chunks/app/dashboard/my-subscriptions/page.js"
     ],
     "/admin/risks/page": [
       "static/chunks/webpack.js",
@@ -46,6 +46,11 @@
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
       "static/chunks/app/admin/teams/page.js"
+    ],
+    "/admin/platform/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/admin/platform/page.js"
     ]
   }
 }

@@ -268,3 +268,15 @@ export const risksApi = {
     return data;
   },
 };
+
+// Dans resources.ts
+export const paymentsApi = {
+  create: async (data: { offerId: string; paymentMethod: string; amount: number; description: string; subscriptionId?: string }) => {
+    const { data: res } = await apiClient.post('/payments', data);
+    return res as { checkoutUrl: string; paymentId: string };
+  },
+  getStatus: async (paymentId: string) => {
+    const { data: res } = await apiClient.get(`/payments/${paymentId}/status`);
+    return res as { status: string };
+  },
+};

@@ -1,9 +1,8 @@
 {
-  "/login/page": "app/login/page.js",
   "/my-offer/page": "app/my-offer/page.js",
-  "/dashboard/my-subscriptions/page": "app/dashboard/my-subscriptions/page.js",
+  "/login/page": "app/login/page.js",
   "/dashboard/page": "app/dashboard/page.js",
-  "/admin/platform/page": "app/admin/platform/page.js",
-  "/admin/risks/page": "app/admin/risks/page.js",
-  "/admin/teams/page": "app/admin/teams/page.js"
+  "/dashboard/my-subscriptions/payment-result/page": "app/dashboard/my-subscriptions/payment-result/page.js",
+  "/dashboard/my-subscriptions/page": "app/dashboard/my-subscriptions/page.js",
+  "/admin/platform/page": "app/admin/platform/page.js"
 }

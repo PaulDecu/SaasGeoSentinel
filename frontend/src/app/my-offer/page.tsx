@@ -19,9 +19,13 @@ export default function MyOfferPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [showRenewModal, setShowRenewModal] = useState(false);
 
-  useEffect(() => {
+useEffect(() => {
+  if (user?.tenantId) {
     loadTenantData();
-  }, []);
+  } else if (user !== undefined) {
+    setIsLoading(false);
+  }
+}, [user]); // ← dépend de user
 
 const loadTenantData = async () => {
   if (!user?.tenantId) return;
@@ -340,7 +344,7 @@ const disabledReason = isButtonDisabled
         className={`btn-neon whitespace-nowrap ${isButtonDisabled ? 'opacity-50 grayscale cursor-not-allowed' : ''}`}
         disabled={isButtonDisabled}
       >
-        {isButtonDisabled ? '🔒 Renouvellement bloqué' : '🔄 Renouveler ma mensualité'}
+        {isButtonDisabled ? '🔒 Renouvellement bloqué' : '🔄 Renouveler mon abonnement'}
       </Button>
       
       {/* Affichage du message explicatif en texte clair */}
