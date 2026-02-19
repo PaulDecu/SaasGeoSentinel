@@ -14,6 +14,7 @@ export default function DashboardPage() {
   const [dashboardMessage, setDashboardMessage] = useState<string | null>(null);
   const [loadingMessage, setLoadingMessage] = useState(true);
 
+
   // Lecture du store partagé (même source que la Navbar)
   const { status: subscriptionStatus, loading: loadingSubscription, fetch: fetchSubscription } = useSubscriptionStore();
 
@@ -58,8 +59,12 @@ export default function DashboardPage() {
     : null;
 
   return (
+
+
     <AuthLayout>
+     
       <div className="space-y-8">
+       
 
         {/* Header */}
         <div>
@@ -302,7 +307,7 @@ export default function DashboardPage() {
 
         {/* Informations du compte */}
         <Card className="card-premium">
-          <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
+          <h2 className="text-xl font-semibold mb-4 flex items-center gap-2 text-slate-900">
             <span>📊</span> Informations du compte
           </h2>
           <div className="space-y-3">

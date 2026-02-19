@@ -39,11 +39,6 @@ export class AuthService {
       relations: ['tenant'],
     });
 
-    
-  if (!user) {
-    throw new UnauthorizedException('Email ou mot de passe incorrect');
-  }
-
     if (!user) {
       throw new UnauthorizedException('Email ou mot de passe incorrect');
     }
@@ -53,7 +48,6 @@ export class AuthService {
       user.passwordHash,
     );
 
-    
     if (!isPasswordValid) {
       throw new UnauthorizedException('Email ou mot de passe incorrect');
     }
@@ -79,8 +73,7 @@ export class AuthService {
     // Ne pas révéler si l'email existe ou non
     if (!user) {
       return {
-        message:
-          'Si votre email existe, vous recevrez un lien de réinitialisation',
+        message: 'Si votre email existe, vous recevrez un lien de réinitialisation',
       };
     }
 
@@ -88,7 +81,7 @@ export class AuthService {
     const token = randomBytes(32).toString('hex');
     const tokenHash = createHash('sha256').update(token).digest('hex');
 
-    // Sauvegarder le token
+    // Sauvegarder le token — valable 1 heure
     await this.passwordResetTokenRepository.save({
       userId: user.id,
       tokenHash,
@@ -100,9 +93,28 @@ export class AuthService {
     await this.mailService.sendPasswordResetEmail(user.email, token);
 
     return {
-      message:
-        'Si votre email existe, vous recevrez un lien de réinitialisation',
+      message: 'Si votre email existe, vous recevrez un lien de réinitialisation',
     };
+  }
+
+  // ✅ NOUVELLE MÉTHODE : envoi du lien d'initialisation lors de la création d'un compte
+  // Token valable 12 heures (contrairement au forgotPassword qui est 1 heure)
+  async sendInitializationEmail(userId: string): Promise<void> {
+    const user = await this.userRepository.findOne({ where: { id: userId } });
+    if (!user) return;
+
+    const token = randomBytes(32).toString('hex');
+    const tokenHash = createHash('sha256').update(token).digest('hex');
+
+    // Token valable 12 heures
+    await this.passwordResetTokenRepository.save({
+      userId: user.id,
+      tokenHash,
+      expiresAt: new Date(Date.now() + 12 * 60 * 60 * 1000), // 12 heures
+      isUsed: false,
+    });
+
+    await this.mailService.sendAccountInitializationEmail(user.email, token);
   }
 
   async resetPassword(resetPasswordDto: ResetPasswordDto) {
@@ -180,7 +192,6 @@ export class AuthService {
         { isRevoked: true },
       );
     } else {
-      // Révoquer tous les tokens de l'utilisateur
       await this.refreshTokenRepository.update(
         { userId },
         { isRevoked: true },
@@ -202,7 +213,6 @@ export class AuthService {
       expiresIn: this.configService.get('JWT_ACCESS_EXPIRES_IN') || '15m',
     });
 
-    // Générer refresh token
     const refreshToken = randomBytes(32).toString('hex');
     const refreshTokenHash = createHash('sha256')
       .update(refreshToken)
@@ -218,7 +228,7 @@ export class AuthService {
     return {
       accessToken,
       refreshToken,
-      expiresIn: 900, // 15 minutes
+      expiresIn: 900,
     };
   }
 
@@ -228,19 +238,16 @@ export class AuthService {
         'Le mot de passe doit contenir entre 8 et 128 caractères',
       );
     }
-
     if (!/[A-Z]/.test(password)) {
       throw new BadRequestException(
         'Le mot de passe doit contenir au moins une majuscule',
       );
     }
-
     if (!/[a-z]/.test(password)) {
       throw new BadRequestException(
         'Le mot de passe doit contenir au moins une minuscule',
       );
     }
-
     if (!/[0-9]/.test(password)) {
       throw new BadRequestException(
         'Le mot de passe doit contenir au moins un chiffre',

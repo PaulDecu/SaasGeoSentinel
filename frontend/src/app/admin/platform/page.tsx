@@ -15,7 +15,7 @@ import { getErrorMessage } from '@/lib/api/client';
 export default function AdminPlatformPage() {
   const { user } = useRequireAuth([UserRole.SUPERADMIN]);
   
-  const [activeTab, setActiveTab] = useState<'offers' | 'tenants'>('offers');
+  const [activeTab, setActiveTab] = useState<'offers' | 'tenants'>('tenants');
   const [offers, setOffers] = useState<Offer[]>([]);
   const [tenants, setTenants] = useState<Tenant[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -24,6 +24,7 @@ export default function AdminPlatformPage() {
   const [selectedTenant, setSelectedTenant] = useState<string | null>(null);
   const [editingTenant, setEditingTenant] = useState<Tenant | null>(null);
   const [editingOffer, setEditingOffer] = useState<Offer | null>(null);
+  const [freeOfferConfirm, setFreeOfferConfirm] = useState<{ data: any; offerName: string } | null>(null);
 
   const offerForm = useForm({
     resolver: zodResolver(createOfferSchema),
@@ -33,8 +34,11 @@ export default function AdminPlatformPage() {
     resolver: zodResolver(createTenantSchema),
   });
 
+  const INIT_PASSWORD = 'initPddc1201@';
+
   const adminForm = useForm({
     resolver: zodResolver(createTenantAdminSchema),
+    defaultValues: { email: '', password: INIT_PASSWORD },
   });
 
   const editTenantForm = useForm({
@@ -91,20 +95,30 @@ export default function AdminPlatformPage() {
     }
   };
 
-const onCreateTenant = async (data: any) => {
+const doCreateTenant = async (data: any) => {
   try {
-    // Récupérer l'offre sélectionnée pour afficher la bonne durée
     const selectedOffer = offers.find(o => o.id === data.offerId);
     const days = selectedOffer?.trialPeriodDays || 30;
-    
     await tenantsApi.create(data);
-    toast.success(`Tenant créé avec succès ! Abonnement actif pour ${days} jours.`);  // ✅ Dynamique
+    toast.success(`Tenant créé avec succès ! Abonnement actif pour ${days} jours.`);
     setShowTenantForm(false);
+    setFreeOfferConfirm(null);
     tenantForm.reset();
     loadData();
   } catch (error) {
     toast.error(getErrorMessage(error));
   }
+};
+
+const onCreateTenant = async (data: any) => {
+  const selectedOffer = offers.find(o => o.id === data.offerId);
+  const offerName = selectedOffer?.name || '';
+  // ✅ Intercepter si le nom de l'offre contient "gratuit"
+  if (offerName.toLowerCase().includes('gratuit')) {
+    setFreeOfferConfirm({ data, offerName });
+    return;
+  }
+  await doCreateTenant(data);
 };
 
   const onUpdateTenant = async (data: any) => {
@@ -171,12 +185,11 @@ const onCreateTenant = async (data: any) => {
 
   const onCreateAdmin = async (data: any) => {
     if (!selectedTenant) return;
-    
     try {
-      await tenantsApi.createAdmin(selectedTenant, data);
-      toast.success('Admin créé avec succès !');
+      await tenantsApi.createAdmin(selectedTenant, { email: data.email, password: INIT_PASSWORD });
+      toast.success('Admin créé — un lien d\'initialisation lui a été envoyé par email.', { duration: 5000, icon: '📧' });
       setSelectedTenant(null);
-      adminForm.reset();
+      adminForm.reset({ email: '', password: INIT_PASSWORD });
     } catch (error) {
       toast.error(getErrorMessage(error));
     }
@@ -423,7 +436,7 @@ const onCreateTenant = async (data: any) => {
               <Card className="card-premium">
                 <h3 className="text-lg font-bold text-slate-900 mb-4">Créer un nouveau tenant</h3>
                 <p className="text-sm text-slate-600 mb-4">
-                  L'abonnement sera automatiquement activé pour 30 jours à partir d'aujourd'hui.
+                  L'abonnement sera automatiquement activé pour la durée de l'offre choisie à partir d'aujourd'hui.
                 </p>
                 <form onSubmit={tenantForm.handleSubmit(onCreateTenant)} className="space-y-4">
                   <Input
@@ -737,23 +750,20 @@ const onCreateTenant = async (data: any) => {
                                 placeholder="admin@exemple.com"
                                 className="input-tech"
                               />
-                              <Input
-                                label="Mot de passe"
-                                type="password"
-                                {...adminForm.register('password')}
-                                error={adminForm.formState.errors.password?.message}
-                                placeholder="••••••••"
-                                className="input-tech"
-                              />
+                              {/* ✅ Pas de champ mot de passe — lien d'initialisation envoyé par email */}
+                              <div className="flex items-center gap-2 text-sm text-primary-700 bg-primary-50 border border-primary-200 rounded-lg px-3 py-2">
+                                <span>📧</span>
+                                <span>Un lien d'initialisation du mot de passe sera envoyé à l'administrateur (valable 12 heures).</span>
+                              </div>
                               <div className="flex gap-2">
-                                <Button type="submit" size="sm" className="btn-neon">Créer</Button>
+                                <Button type="submit" size="sm" className="btn-neon">Créer et envoyer le lien</Button>
                                 <Button
                                   type="button"
                                   variant="ghost"
                                   size="sm"
                                   onClick={() => {
                                     setSelectedTenant(null);
-                                    adminForm.reset();
+                                    adminForm.reset({ email: '', password: INIT_PASSWORD });
                                   }}
                                 >
                                   Annuler
@@ -768,6 +778,38 @@ const onCreateTenant = async (data: any) => {
                 ))}
               </div>
             )}
+          </div>
+        )}
+        {/* ✅ Modale de confirmation offre gratuite */}
+        {freeOfferConfirm && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-xl shadow-2xl p-6 max-w-md w-full mx-4">
+              <div className="flex items-center gap-3 mb-4">
+                <span className="text-3xl">🎁</span>
+                <h3 className="text-lg font-bold text-slate-900">Offre gratuite sélectionnée</h3>
+              </div>
+              <p className="text-slate-600 mb-2">
+                Vous êtes sur le point de créer un tenant avec l'offre <strong className="text-primary-600">"{freeOfferConfirm.offerName}"</strong>.
+              </p>
+              <p className="text-slate-600 mb-6">
+                Cette offre est <strong>gratuite</strong>. Confirmez-vous la création de ce tenant ?
+              </p>
+              <div className="flex gap-3">
+                <Button
+                  className="btn-neon flex-1"
+                  onClick={() => doCreateTenant(freeOfferConfirm.data)}
+                >
+                  ✅ Confirmer
+                </Button>
+                <Button
+                  variant="ghost"
+                  className="flex-1"
+                  onClick={() => setFreeOfferConfirm(null)}
+                >
+                  ← Revenir à la saisie
+                </Button>
+              </div>
+            </div>
           </div>
         )}
       </div>

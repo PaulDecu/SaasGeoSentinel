@@ -17,8 +17,7 @@ import { RisksService } from './risks.service';
 import { CreateRiskDto, UpdateRiskDto, FindNearbyRisksDto } from './dto/risks.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
-import { Roles } from '../common/decorators/current-user.decorator';
-import { CurrentUser } from '../common/decorators/current-user.decorator';
+import { Roles, CurrentUser } from '../common/decorators/current-user.decorator';
 import { User } from '../users/entities/user.entity';
 import { UserRole } from '../users/entities/user-role.enum';
 
@@ -33,13 +32,9 @@ export class RisksController {
     return this.risksService.create(createRiskDto, user);
   }
 
-  // ✅ IMPORTANT: Route bulk-delete AVANT :id
   @Post('bulk-delete')
   @Roles(UserRole.SUPERADMIN, UserRole.ADMIN, UserRole.GESTIONNAIRE, UserRole.UTILISATEUR)
-  async bulkDelete(
-    @Body('ids') ids: string[],
-    @CurrentUser() user: User,
-  ): Promise<{ success: string[]; failed: string[] }> {
+  async bulkDelete(@Body('ids') ids: string[], @CurrentUser() user: User) {
     return this.risksService.bulkDelete(ids, user);
   }
 
@@ -47,6 +42,13 @@ export class RisksController {
   @Roles(UserRole.SUPERADMIN, UserRole.ADMIN, UserRole.GESTIONNAIRE, UserRole.UTILISATEUR)
   findAll(@CurrentUser() user: User) {
     return this.risksService.findAll(user);
+  }
+
+  // ✅ NOUVELLE ROUTE : tous les risques de l'entreprise (lecture seule pour UTILISATEUR)
+  @Get('company')
+  @Roles(UserRole.UTILISATEUR, UserRole.GESTIONNAIRE, UserRole.ADMIN, UserRole.SUPERADMIN)
+  findAllByCompany(@CurrentUser() user: User) {
+    return this.risksService.findAllByCompany(user);
   }
 
   @Get('nearby')
@@ -60,13 +62,12 @@ export class RisksController {
     const risks = await this.risksService.findNearby(query, user);
     const etag = await this.risksService.generateETag(risks);
 
-    // Gestion ETag pour cache
     if (req.headers['if-none-match'] === etag) {
       return res.status(HttpStatus.NOT_MODIFIED).send();
     }
 
     res.setHeader('ETag', etag);
-    res.setHeader('Cache-Control', 'private, max-age=60'); // Cache 1 minute
+    res.setHeader('Cache-Control', 'private, max-age=60');
     return res.json(risks);
   }
 
@@ -78,11 +79,7 @@ export class RisksController {
 
   @Put(':id')
   @Roles(UserRole.SUPERADMIN, UserRole.ADMIN, UserRole.GESTIONNAIRE, UserRole.UTILISATEUR)
-  update(
-    @Param('id') id: string,
-    @Body() updateRiskDto: UpdateRiskDto,
-    @CurrentUser() user: User,
-  ) {
+  update(@Param('id') id: string, @Body() updateRiskDto: UpdateRiskDto, @CurrentUser() user: User) {
     return this.risksService.update(id, updateRiskDto, user);
   }
 

@@ -106,6 +106,20 @@ export const tenantsApi = {
     const { data } = await apiClient.get('/tenants/me');
     return data;
   },
+
+   updateMe: async (data: {
+    companyName?: string;
+    contactPhone?: string;
+    addressLine1?: string;
+    addressLine2?: string;
+    postalCode?: string;
+    city?: string;
+    country?: string;
+    siren?: string;
+  }): Promise<any> => {
+    const { data: res } = await apiClient.put('/tenants/me', data);
+    return res;
+  },
 };
 
 // Offers API
@@ -256,6 +270,11 @@ export const risksApi = {
 
   delete: async (id: string): Promise<void> => {
     await apiClient.delete(`/risks/${id}`);
+  },
+
+  getCompanyRisks: async (): Promise<Risk[]> => {
+    const { data } = await apiClient.get<Risk[]>('/risks/company');
+    return data;
   },
 
   findNearby: async (params: {

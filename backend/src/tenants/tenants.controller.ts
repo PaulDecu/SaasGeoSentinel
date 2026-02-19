@@ -10,7 +10,7 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { TenantsService } from './tenants.service';
-import { CreateTenantDto, UpdateTenantDto, CreateTenantAdminDto } from './dto/tenants.dto';
+import { CreateTenantDto, UpdateTenantDto, CreateTenantAdminDto, UpdateMyTenantDto } from './dto/tenants.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles, CurrentUser } from '../common/decorators/current-user.decorator';
@@ -22,57 +22,30 @@ import { UserRole } from '../users/entities/user-role.enum';
 export class TenantsController {
   constructor(private readonly tenantsService: TenantsService) {}
 
-  // 🆕 NOUVELLE ROUTE : Vérifier la validité de l'abonnement
   @Get('subscription-status')
   @Roles(UserRole.ADMIN, UserRole.SUPERADMIN, UserRole.GESTIONNAIRE, UserRole.UTILISATEUR)
   async checkSubscriptionStatus(@CurrentUser() user: User) {
     const tenantId = user.tenantId;
-    
-    if (!tenantId) {
-      return {
-        isValid: false,
-        subscriptionEnd: null,
-        daysRemaining: 0,
-      };
-    }
+    if (!tenantId) return { isValid: false, subscriptionEnd: null, daysRemaining: 0 };
 
     const tenant = await this.tenantsService.findOne(tenantId);
-    
     const now = new Date();
     now.setHours(0, 0, 0, 0);
-    
     const subscriptionEnd = tenant.subscriptionEnd ? new Date(tenant.subscriptionEnd) : null;
-    
-    if (!subscriptionEnd) {
-      return {
-        isValid: false,
-        subscriptionEnd: null,
-        daysRemaining: 0,
-      };
-    }
-    
+    if (!subscriptionEnd) return { isValid: false, subscriptionEnd: null, daysRemaining: 0 };
+
     subscriptionEnd.setHours(0, 0, 0, 0);
-    
     const isValid = subscriptionEnd >= now;
     const daysRemaining = Math.ceil((subscriptionEnd.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-    
-    return {
-      isValid,
-      subscriptionEnd: tenant.subscriptionEnd,
-      daysRemaining: isValid ? daysRemaining : 0,
-    };
+
+    return { isValid, subscriptionEnd: tenant.subscriptionEnd, daysRemaining: isValid ? daysRemaining : 0 };
   }
 
-  // 🆕 NOUVELLE ROUTE : Récupérer les infos du tenant connecté
   @Get('me')
   @Roles(UserRole.ADMIN, UserRole.GESTIONNAIRE, UserRole.UTILISATEUR)
   async getMyTenantInfo(@CurrentUser() user: User) {
-    if (!user.tenantId) {
-      throw new ForbiddenException('Aucun tenant associé à cet utilisateur');
-    }
-    
+    if (!user.tenantId) throw new ForbiddenException('Aucun tenant associé à cet utilisateur');
     const tenant = await this.tenantsService.findOne(user.tenantId);
-    
     return {
       companyName: tenant.companyName,
       contactEmail: tenant.contactEmail,
@@ -84,6 +57,17 @@ export class TenantsController {
       country: tenant.country,
       siren: tenant.siren,
     };
+  }
+
+  // ✅ NOUVELLE ROUTE : Mise à jour du profil entreprise par l'admin du tenant
+  @Put('me')
+  @Roles(UserRole.ADMIN)
+  async updateMyTenantInfo(
+    @CurrentUser() user: User,
+    @Body() updateDto: UpdateMyTenantDto,
+  ) {
+    if (!user.tenantId) throw new ForbiddenException('Aucun tenant associé à cet utilisateur');
+    return this.tenantsService.update(user.tenantId, updateDto, user.id);
   }
 
   @Post()
@@ -99,29 +83,17 @@ export class TenantsController {
   }
 
   @Get(':id')
-  @Roles(UserRole.SUPERADMIN, UserRole.ADMIN) // ✅ Admin peut accéder
+  @Roles(UserRole.SUPERADMIN, UserRole.ADMIN)
   findOne(@Param('id') id: string, @CurrentUser() user: User) {
-    // ✅ Si admin, vérifier qu'il accède à son propre tenant
-    if (user.role === UserRole.ADMIN) {
-      if (user.tenantId !== id) {
-        throw new ForbiddenException(
-          'Vous ne pouvez accéder qu\'à votre propre tenant',
-        );
-        console.log(user.tenant);
-        console.log(id);
-      }
+    if (user.role === UserRole.ADMIN && user.tenantId !== id) {
+      throw new ForbiddenException('Vous ne pouvez accéder qu\'à votre propre tenant');
     }
-    
     return this.tenantsService.findOne(id);
   }
 
   @Put(':id')
   @Roles(UserRole.SUPERADMIN)
-  update(
-    @Param('id') id: string,
-    @Body() updateTenantDto: UpdateTenantDto,
-    @CurrentUser() user: User,
-  ) {
+  update(@Param('id') id: string, @Body() updateTenantDto: UpdateTenantDto, @CurrentUser() user: User) {
     return this.tenantsService.update(id, updateTenantDto, user.id);
   }
 
@@ -133,11 +105,7 @@ export class TenantsController {
 
   @Post(':id/admins')
   @Roles(UserRole.SUPERADMIN)
-  createAdmin(
-    @Param('id') id: string,
-    @Body() createAdminDto: CreateTenantAdminDto,
-    @CurrentUser() user: User,
-  ) {
+  createAdmin(@Param('id') id: string, @Body() createAdminDto: CreateTenantAdminDto, @CurrentUser() user: User) {
     return this.tenantsService.createAdmin(id, createAdminDto, user.id);
   }
 }

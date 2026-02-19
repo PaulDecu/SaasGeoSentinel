@@ -308,10 +308,25 @@ INSERT INTO offers (name, max_users, price, end_of_sale) VALUES
 INSERT INTO users (email, password_hash, role, tenant_id) VALUES
     ('admin@platform.local', '$2a$10$rH8qGJKVXLKZC7vJ7gKZhexBKdXvXnXQJJXvqfLJQhHnVLGqNP7.m', 'superadmin', NULL);
 
-COMMENT ON TABLE offers IS 'Dernière mise à jour: ' || CURRENT_TIMESTAMP::TEXT;
-COMMENT ON TABLE tenants IS 'Dernière mise à jour: ' || CURRENT_TIMESTAMP::TEXT;
-COMMENT ON TABLE users IS 'Dernière mise à jour: ' || CURRENT_TIMESTAMP::TEXT;
-COMMENT ON TABLE risks IS 'Dernière mise à jour: ' || CURRENT_TIMESTAMP::TEXT;
+DO $$
+DECLARE
+    comment_text TEXT;
+BEGIN
+    -- 1. Construire la chaîne du commentaire avec la date actuelle
+    comment_text := 'Dernière mise à jour: ' || CURRENT_TIMESTAMP::TEXT;
+    
+    -- 2. Exécuter dynamiquement la commande COMMENT ON
+    EXECUTE 'COMMENT ON TABLE offers IS ' || quote_literal(comment_text);
+    EXECUTE 'COMMENT ON TABLE tenants IS ' || quote_literal(comment_text);
+    EXECUTE 'COMMENT ON TABLE users IS ' || quote_literal(comment_text);
+    EXECUTE 'COMMENT ON TABLE risks IS ' || quote_literal(comment_text);
+END
+$$;
+
+--COMMENT ON TABLE offers IS 'Dernière mise à jour: ' || CURRENT_TIMESTAMP::TEXT;
+--COMMENT ON TABLE tenants IS 'Dernière mise à jour: ' || CURRENT_TIMESTAMP::TEXT;
+--COMMENT ON TABLE users IS 'Dernière mise à jour: ' || CURRENT_TIMESTAMP::TEXT;
+--COMMENT ON TABLE risks IS 'Dernière mise à jour: ' || CURRENT_TIMESTAMP::TEXT;
 
 
 -- Migration: Create system_settings table
@@ -556,6 +571,11 @@ ALTER TABLE tenants
 -- Mise à jour du timestamp updated_at automatiquement (si trigger existant)
 -- Si vous n'avez pas de trigger, les UPDATE le feront via TypeORM.
 
+
+
+
+
+
 -- Migration pour ajouter l'identifiant fonctionnel aux souscriptions
 -- Format: GS-00000000x (ex: GS-000000001, GS-000000002, etc.)
 
@@ -569,7 +589,7 @@ ALTER TABLE subscriptions
 ADD COLUMN functional_id VARCHAR(12);
 
 -- 3. Créer une fonction pour générer l'identifiant fonctionnel
-CREATE OR REPLACE FUNCTION generate_subscription_functional_id()
+ CREATE OR REPLACE FUNCTION generate_subscription_functional_id()
 RETURNS TEXT AS $$
 DECLARE
     next_id INTEGER;
@@ -580,9 +600,11 @@ BEGIN
     -- Formater l'ID au format GS-00000000x
     RETURN 'GS-' || LPAD(next_id::TEXT, 9, '0');
 END;
-$$ LANGUAGE plpgsql;
+$$ LANGUAGE plpgsql IMMUTABLE; 
+
 
 -- 4. Mettre à jour TOUS les enregistrements existants avec des IDs fonctionnels AVANT de créer les contraintes
+
 DO $$
 DECLARE
     rec RECORD;
@@ -636,6 +658,9 @@ CHECK (functional_id ~ '^GS-[0-9]{9}$');
 
 -- 11. Mettre à jour la vue existante pour inclure le functional_id
 DROP VIEW IF EXISTS subscriptions_with_details;
+
+
+
 
 CREATE OR REPLACE VIEW subscriptions_with_details AS
 SELECT 

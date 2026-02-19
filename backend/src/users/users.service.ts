@@ -4,6 +4,8 @@ import {
   ForbiddenException,
   BadRequestException,
   ConflictException,
+  forwardRef,
+  Inject,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -13,6 +15,7 @@ import { CreateUserDto, UpdateUserDto, BulkDeleteUsersDto } from './dto/users.dt
 import { UserRole } from './entities/user-role.enum';
 import { TenantsService } from '../tenants/tenants.service';
 import { AuditService } from '../audit/audit.service';
+import { AuthService } from '../auth/auth.service';
 
 @Injectable()
 export class UsersService {
@@ -21,6 +24,8 @@ export class UsersService {
     private userRepository: Repository<User>,
     private tenantsService: TenantsService,
     private auditService: AuditService,
+    @Inject(forwardRef(() => AuthService))
+    private authService: AuthService,
   ) {}
 
   async create(createUserDto: CreateUserDto, creator: User): Promise<User> {
@@ -45,7 +50,6 @@ export class UsersService {
         throw new ForbiddenException('Vous ne pouvez créer des utilisateurs que pour votre tenant');
       }
 
-      // Forcer le tenant de l'admin pour les utilisateurs qu'il crée
       createUserDto.tenantId = creator.tenantId || undefined;
     }
 
@@ -66,6 +70,9 @@ export class UsersService {
     });
 
     const savedUser = await this.userRepository.save(user);
+
+    // ✅ Envoyer le lien d'initialisation (valable 12h) après la création
+    await this.authService.sendInitializationEmail(savedUser.id);
 
     // Audit log
     await this.auditService.log({
@@ -90,7 +97,6 @@ export class UsersService {
       });
     }
 
-    // Admin voit uniquement les utilisateurs de son tenant
     if (!currentUser.tenantId) {
       return [];
     }
@@ -112,7 +118,6 @@ export class UsersService {
       throw new NotFoundException('Utilisateur non trouvé');
     }
 
-    // Vérifier les permissions
     if (
       currentUser.role !== UserRole.SUPERADMIN &&
       user.tenantId !== currentUser.tenantId
@@ -126,7 +131,6 @@ export class UsersService {
   async update(id: string, updateUserDto: UpdateUserDto, currentUser: User): Promise<User> {
     const user = await this.findOne(id, currentUser);
 
-    // Un admin ne peut pas modifier le rôle en admin ou superadmin
     if (
       currentUser.role === UserRole.ADMIN &&
       updateUserDto.role &&
@@ -142,15 +146,11 @@ export class UsersService {
 
     const updatedUser = await this.userRepository.save(user);
 
-    // Audit log
     await this.auditService.log({
       action: 'USER_UPDATED',
       userId: currentUser.id,
       tenantId: currentUser.tenantId,
-      details: {
-        updatedUserId: id,
-        updates: updateUserDto,
-      },
+      details: { updatedUserId: id, updates: updateUserDto },
     });
 
     return updatedUser;
@@ -159,12 +159,10 @@ export class UsersService {
   async remove(id: string, currentUser: User): Promise<void> {
     const user = await this.findOne(id, currentUser);
 
-    // Impossible de se supprimer soi-même
     if (id === currentUser.id) {
       throw new BadRequestException('Impossible de supprimer votre propre compte');
     }
 
-    // Admin ne peut supprimer que gestionnaires et utilisateurs
     if (
       currentUser.role === UserRole.ADMIN &&
       ![UserRole.GESTIONNAIRE, UserRole.UTILISATEUR].includes(user.role)
@@ -172,30 +170,22 @@ export class UsersService {
       throw new ForbiddenException('Vous ne pouvez supprimer que des gestionnaires et utilisateurs');
     }
 
-    // 2. Gestion de la suppression avec interception de l'erreur de contrainte
-  try {
-    await this.userRepository.remove(user);
-  } catch (error: any) {
-    // Le code '23503' correspond à une violation de clé étrangère dans PostgreSQL
-    if (error.code === '23503' || error.message?.includes('foreign key constraint')) {
-      throw new ConflictException(
-        "Impossible de supprimer cet utilisateur car il existe des risques rattachés à son compte."
-      );
+    try {
+      await this.userRepository.remove(user);
+    } catch (error: any) {
+      if (error.code === '23503' || error.message?.includes('foreign key constraint')) {
+        throw new ConflictException(
+          "Impossible de supprimer cet utilisateur car il existe des risques rattachés à son compte."
+        );
+      }
+      throw error;
     }
-    // Si c'est une autre erreur, on la relance
-    throw error;
-  }
 
-    // Audit log
     await this.auditService.log({
       action: 'USER_DELETED',
       userId: currentUser.id,
       tenantId: currentUser.tenantId,
-      details: {
-        deletedUserId: id,
-        email: user.email,
-        role: user.role,
-      },
+      details: { deletedUserId: id, email: user.email, role: user.role },
     });
   }
 
@@ -203,24 +193,17 @@ export class UsersService {
     const results: {
       success: string[];
       errors: Array<{ userId: string; error: string }>;
-    } = {
-      success: [],
-      errors: [],
-    };
+    } = { success: [], errors: [] };
 
     for (const userId of bulkDeleteDto.userIds) {
       try {
         await this.remove(userId, currentUser);
         results.success.push(userId);
       } catch (error: any) {
-        results.errors.push({
-          userId,
-          error: error.message,
-        });
+        results.errors.push({ userId, error: error.message });
       }
     }
 
-    // Audit log
     await this.auditService.log({
       action: 'USERS_BULK_DELETE',
       userId: currentUser.id,
@@ -241,19 +224,16 @@ export class UsersService {
         'Le mot de passe doit contenir entre 8 et 128 caractères',
       );
     }
-
     if (!/[A-Z]/.test(password)) {
       throw new BadRequestException(
         'Le mot de passe doit contenir au moins une majuscule',
       );
     }
-
     if (!/[a-z]/.test(password)) {
       throw new BadRequestException(
         'Le mot de passe doit contenir au moins une minuscule',
       );
     }
-
     if (!/[0-9]/.test(password)) {
       throw new BadRequestException(
         'Le mot de passe doit contenir au moins un chiffre',

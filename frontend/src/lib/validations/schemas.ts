@@ -66,7 +66,14 @@ export const createTenantSchema = z.object({
   postalCode: z.string().optional(),
   city: z.string().optional(),
   country: z.string().optional(),
-  siren: z.string().regex(/^[0-9]{9}([0-9]{5})?$/, 'Format SIREN/SIRET invalide (9 ou 14 chiffres)').optional(),
+  //siren: z.string().regex(/^[0-9]{9}([0-9]{5})?$/, 'Format SIREN/SIRET invalide (9 ou 14 chiffres)').optional(),
+  siren: z.preprocess(
+  (val) => (val === '' ? null : val),
+  z.string()
+    .regex(/^[0-9]{9}([0-9]{5})?$/, 'Format SIREN/SIRET invalide')
+    .nullable()
+    .optional()
+),
 });
 
 export const createTenantAdminSchema = z.object({
@@ -89,7 +96,11 @@ export const updateTenantSchema = z.object({
   postalCode: z.string().optional(),
   city: z.string().optional(),
   country: z.string().optional(),
-  siren: z.string().regex(/^[0-9]{9}([0-9]{5})?$/, 'Format SIREN/SIRET invalide (9 ou 14 chiffres)').optional(),
+  //siren: z.string().regex(/^[0-9]{9}([0-9]{5})?$/, 'Format SIREN/SIRET invalide (9 ou 14 chiffres)').optional(),
+  siren: z.string()
+  .regex(/^[0-9]{9}([0-9]{5})?$/, 'Format SIREN/SIRET invalide')
+  .optional()
+  .or(z.literal('')),
 });
 
 export type UpdateTenantInput = z.infer<typeof updateTenantSchema>;

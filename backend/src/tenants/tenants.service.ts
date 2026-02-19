@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException, ConflictException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, ConflictException, forwardRef, Inject } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Tenant } from './entities/tenant.entity';
@@ -9,6 +9,7 @@ import { AuditService } from '../audit/audit.service';
 import * as bcrypt from 'bcrypt';
 import { UserRole } from '../users/entities/user-role.enum';
 import { Subscription } from '../subscriptions/entities/subscription.entity';
+import { AuthService } from '../auth/auth.service';
 
 @Injectable()
 export class TenantsService {
@@ -22,6 +23,8 @@ export class TenantsService {
     private readonly auditService: AuditService,
     @InjectRepository(Subscription)  // 👈 NOUVEAU
     private subscriptionRepository: Repository<Subscription>,
+    @Inject(forwardRef(() => AuthService))
+    private readonly authService: AuthService,
   ) {}
 
   async create(createTenantDto: CreateTenantDto, createdBy: string): Promise<Tenant> {
@@ -157,7 +160,20 @@ export class TenantsService {
     if (updateTenantDto.postalCode !== undefined) tenant.postalCode = updateTenantDto.postalCode;
     if (updateTenantDto.city !== undefined) tenant.city = updateTenantDto.city;
     if (updateTenantDto.country !== undefined) tenant.country = updateTenantDto.country;
-    if (updateTenantDto.siren !== undefined) tenant.siren = updateTenantDto.siren;
+    //if (updateTenantDto.siren !== undefined) tenant.siren = updateTenantDto.siren;
+     
+    if (updateTenantDto.siren !== undefined) {
+      tenant.siren = updateTenantDto.siren || null; // ✅ chaîne vide → null
+    }
+
+    if (updateTenantDto.siren !== undefined) {
+      const sirenValue = updateTenantDto.siren || null;
+      // Validation du format (9 chiffres ou 14 chiffres)
+      if (sirenValue !== null && !/^[0-9]{9}([0-9]{5})?$/.test(sirenValue)) {
+          throw new Error("Format invalide : le numéro SIREN/SIRET doit comporter 9 ou 14 chiffres.");
+      }
+      tenant.siren = sirenValue; // ✅ chaîne vide ou null après validation
+    }
 
     const updatedTenant = await this.tenantRepository.save(tenant);
 
@@ -247,6 +263,8 @@ export class TenantsService {
     });
 
     const savedAdmin = await this.userRepository.save(admin);
+ // ✅ Envoyer le lien d'initialisation (valable 12h)
+    await this.authService.sendInitializationEmail(savedAdmin.id);
 
     // Log d'audit
     await this.auditService.log({

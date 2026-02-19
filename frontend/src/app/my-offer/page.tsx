@@ -126,7 +126,7 @@ const disabledReason = isButtonDisabled
             <h1 className="title-tech text-4xl">Mon Offre</h1>
             <Link href="/dashboard/my-subscriptions">
               <Button className="btn-primary">
-                📋 Mes Abonnements
+                📋 Mes Abonnements & Factures
               </Button>
             </Link>
           </div>
