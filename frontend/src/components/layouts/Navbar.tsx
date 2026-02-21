@@ -98,6 +98,19 @@ export const Navbar = () => {
               </Link>
             )}
 
+            {/* Abonnements — Superadmin uniquement */}
+            {user.role === UserRole.SUPERADMIN && (
+              <Link href="/admin/platform/subscriptions">
+                <button className={`px-4 py-2 rounded-lg font-bold text-sm transition-all duration-300 ${
+                  pathname.startsWith('/admin/platform/subscriptions')
+                    ? 'bg-primary-500 text-white shadow-neon-cyan scale-105'
+                    : 'text-slate-700 hover:text-primary-600 hover:bg-primary-50'
+                }`}>
+                  <span className="flex items-center gap-2">📦 Abonnements</span>
+                </button>
+              </Link>
+            )}
+
             {/* Équipes — désactivé si abonnement expiré */}
             {(user.role === UserRole.ADMIN || user.role === UserRole.SUPERADMIN) && (
               isSubscriptionExpired

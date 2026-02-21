@@ -1,9 +1,8 @@
 {
-  "/page": "app/page.js",
+  "/not-found": "app/not-found.js",
+  "/admin/platform/subscriptions/page": "app/admin/platform/subscriptions/page.js",
   "/login/page": "app/login/page.js",
   "/dashboard/page": "app/dashboard/page.js",
-  "/admin/risks/page": "app/admin/risks/page.js",
-  "/me/page": "app/me/page.js",
-  "/admin/platform/page": "app/admin/platform/page.js",
-  "/admin/system-settings/page": "app/admin/system-settings/page.js"
+  "/admin/platform/subscriptions/[tenantId]/page": "app/admin/platform/subscriptions/[tenantId]/page.js",
+  "/my-offer/page": "app/my-offer/page.js"
 }

@@ -124,6 +124,15 @@ const disabledReason = isButtonDisabled
         <div>
           <div className="flex items-center justify-between mb-2">
             <h1 className="title-tech text-4xl">Mon Offre</h1>
+                       <div className="flex flex-col items-end gap-2">
+      <Button 
+        onClick={handleRenew}
+        className={`btn-neon whitespace-nowrap ${isButtonDisabled ? 'opacity-50 grayscale cursor-not-allowed' : ''}`}
+        disabled={isButtonDisabled}
+      >
+        {isButtonDisabled ? '🔒 Renouvellement bloqué' : '🔄 Renouveler mon abonnement'}
+      </Button>
+      </div> 
             <Link href="/dashboard/my-subscriptions">
               <Button className="btn-primary">
                 📋 Mes Abonnements & Factures
@@ -133,7 +142,9 @@ const disabledReason = isButtonDisabled
           <p className="text-slate-600">
             Détails de votre abonnement et gestion du renouvellement
           </p>
-        </div>
+         
+        </div> 
+
 
         {/* Alerte expiration */}
         {isExpired && (

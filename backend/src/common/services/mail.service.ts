@@ -2,8 +2,16 @@ import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as nodemailer from 'nodemailer';
 
+export interface SendMailOptions {
+  to: string;
+  subject: string;
+  html: string;
+  from?: string;
+}
+
 @Injectable()
 export class MailService {
+  
   private transporter: nodemailer.Transporter;
 
   constructor(private configService: ConfigService) {
@@ -20,6 +28,26 @@ export class MailService {
     });
   }
 
+  // ─── Méthode générique (nouvelle) ────────────────────────────────────────────
+  async sendMail(options: SendMailOptions): Promise<void> {
+    const from =
+      options.from ??
+      this.configService.get<string>('SMTP_FROM', 'GeoSentinel <no-reply@geosentinel.fr>');
+
+    try {
+      await this.transporter.sendMail({
+        from,
+        to: options.to,
+        subject: options.subject,
+        html: options.html,
+      });
+      console.log(`✅ Mail envoyé → ${options.to} | Sujet : ${options.subject}`);
+    } catch (error) {
+      console.error(`❌ Erreur SMTP → ${options.to} : ${error.message}`, error.stack);
+      throw error; // on re-throw pour que le service appelant puisse loguer et continuer
+    }
+  }
+  
   // Lien de réinitialisation classique — valable 1 heure
   async sendPasswordResetEmail(email: string, token: string): Promise<void> {
     const resetUrl = `${this.configService.get('FRONTEND_URL')}/reset-password?token=${token}`;

@@ -122,6 +122,16 @@ export class SubscriptionsController {
   }
 
   /**
+   * GET /subscriptions/by-tenant/:tenantId
+   * Récupérer tous les abonnements d'un tenant spécifique (SUPERADMIN uniquement)
+   */
+  @Get('by-tenant/:tenantId')
+  @Roles(UserRole.SUPERADMIN)
+  async findByTenant(@Param('tenantId') tenantId: string) {
+    return this.subscriptionsService.findAllByTenant(tenantId);
+  }
+
+  /**
    * GET /subscriptions/:id
    * Récupérer un abonnement spécifique
    */

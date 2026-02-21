@@ -205,6 +205,12 @@ export const offersApi = {
 
 // Subscriptions API
 export const subscriptionsApi = {
+  // ✅ SUPERADMIN — Abonnements d'un tenant spécifique
+  getByTenant: async (tenantId: string): Promise<Subscription[]> => {
+    const { data } = await apiClient.get<Subscription[]>(`/subscriptions/by-tenant/${tenantId}`);
+    return data;
+  },
+
   // Récupérer tous les abonnements de mon tenant
   getMySubscriptions: async (): Promise<Subscription[]> => {
     const { data } = await apiClient.get<Subscription[]>('/subscriptions/my-tenant');
@@ -232,6 +238,17 @@ export const subscriptionsApi = {
   // ✅ NOUVELLE MÉTHODE : Récupérer un abonnement par son functional_id
   getByFunctionalId: async (functionalId: string): Promise<Subscription> => {
     const { data } = await apiClient.get<Subscription>(`/subscriptions/functional/${functionalId}`);
+    return data;
+  },
+  // ✅ AJOUTER CETTE MÉTHODE :
+  triggerNotifications: async (): Promise<{ message: string }> => {
+    const { data } = await apiClient.post('admin/subscriptions/notifications/trigger');
+    return data;
+  },
+
+  // ✅ OPTIONNEL : Vous pouvez aussi ajouter les méthodes pour les logs et stats
+  getNotificationLogs: async (): Promise<any[]> => {
+    const { data } = await apiClient.get('admin/subscriptions/notifications/logs');
     return data;
   },
 

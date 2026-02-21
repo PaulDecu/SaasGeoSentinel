@@ -4,6 +4,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { APP_GUARD } from '@nestjs/core';
 import { ThrottlerGuard } from '@nestjs/throttler';
+import { ScheduleModule } from '@nestjs/schedule';
 
 // Modules
 import { AuthModule } from './auth/auth.module';
@@ -29,9 +30,12 @@ import { AuditLog } from './audit/entities/audit-log.entity';
 import { SystemSetting } from './system-settings/entities/system-settings.entity'; // ✅ AJOUTÉ
 import { Subscription } from './subscriptions/entities/subscription.entity'; // ✅ AJOUTER CET IMPORT
 import { TenantRiskCategory } from './tenants/entities/tenant-risk-category.entity';
+import { SubscriptionNotificationLog } from './subscriptions/entities/subscription-notification-log.entity';
+
 
 @Module({
   imports: [
+    ScheduleModule.forRoot(),
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: '.env', // Force la lecture du fichier à la racine
@@ -57,6 +61,7 @@ import { TenantRiskCategory } from './tenants/entities/tenant-risk-category.enti
           SystemSetting, // ✅ AJOUTÉ
           Subscription,
           TenantRiskCategory,
+          SubscriptionNotificationLog,
         ],
         synchronize: false, // IMPORTANT: Toujours false en production
         logging: config.get('NODE_ENV') === 'development',
