@@ -1,6 +1,16 @@
 import apiClient from './client';
 import { User, Tenant, Offer, Risk, Subscription, SubscriptionStats, RenewSubscriptionRequest } from '@/types';
 
+// ✅ Type pour les catégories de risques dynamiques
+export interface RiskCategory {
+  id: string;
+  name: string;
+  label: string;
+  color: string;
+  icon: string | null;
+  position: number;
+}
+
 // Users API
 export const usersApi = {
   getAll: async (): Promise<User[]> => {
@@ -119,6 +129,37 @@ export const tenantsApi = {
   }): Promise<any> => {
     const { data: res } = await apiClient.put('/tenants/me', data);
     return res;
+  },
+
+  // ✅ Catégories de risques dynamiques par tenant
+  getRiskCategories: async (): Promise<RiskCategory[]> => {
+    const { data } = await apiClient.get<RiskCategory[]>('/tenants/risk-categories');
+    return data;
+  },
+
+  createRiskCategory: async (input: {
+    name: string;
+    label: string;
+    color?: string;
+    icon?: string;
+    position?: number;
+  }): Promise<RiskCategory> => {
+    const { data } = await apiClient.post<RiskCategory>('/tenants/risk-categories', input);
+    return data;
+  },
+
+  updateRiskCategory: async (id: string, input: {
+    label?: string;
+    color?: string;
+    icon?: string;
+    position?: number;
+  }): Promise<RiskCategory> => {
+    const { data } = await apiClient.put<RiskCategory>(`/tenants/risk-categories/${id}`, input);
+    return data;
+  },
+
+  deleteRiskCategory: async (id: string): Promise<void> => {
+    await apiClient.delete(`/tenants/risk-categories/${id}`);
   },
 };
 

@@ -10,7 +10,7 @@ import { Button, Input, Card, Spinner } from '@/components/ui';
 import { changePasswordSchema, type ChangePasswordInput } from '@/lib/validations/schemas';
 import { useRequireAuth } from '@/lib/hooks/useAuth';
 import { profileApi } from '@/lib/api/auth';
-import { tenantsApi } from '@/lib/api/resources';
+import { tenantsApi, type RiskCategory } from '@/lib/api/resources';
 import { getErrorMessage } from '@/lib/api/client';
 import { UserRole } from '@/types';
 
@@ -26,6 +26,18 @@ const companySchema = z.object({
 });
 type CompanyInput = z.infer<typeof companySchema>;
 
+const categorySchema = z.object({
+  name: z.string()
+    .min(1, 'Requis')
+    .max(100)
+    .regex(/^[a-z0-9_-]+$/, 'Minuscules, chiffres, _ ou - uniquement'),
+  label: z.string().min(1, 'Requis').max(150),
+  color: z.string().regex(/^#[0-9A-Fa-f]{6}$/, 'Couleur hex ex: #10B981').default('#6b7280'),
+  icon: z.string().max(50).optional(),
+  position: z.number().min(0).optional(),
+});
+type CategoryInput = z.infer<typeof categorySchema>;
+
 export default function ProfilePage() {
   const { user } = useRequireAuth();
 
@@ -35,6 +47,14 @@ export default function ProfilePage() {
   const [showCompanyForm, setShowCompanyForm] = useState(false);
   const [tenantInfo, setTenantInfo] = useState<any>(null);
   const [isLoadingTenant, setIsLoadingTenant] = useState(false);
+
+  // ✅ État pour les catégories de risques
+  const [riskCategories, setRiskCategories] = useState<RiskCategory[]>([]);
+  const [isLoadingCategories, setIsLoadingCategories] = useState(false);
+  const [showCategoryForm, setShowCategoryForm] = useState(false);
+  const [editingCategory, setEditingCategory] = useState<RiskCategory | null>(null);
+  const [isSavingCategory, setIsSavingCategory] = useState(false);
+  const [deletingCategoryId, setDeletingCategoryId] = useState<string | null>(null);
 
   const isAdmin = user?.role === UserRole.ADMIN;
 
@@ -46,10 +66,17 @@ export default function ProfilePage() {
     resolver: zodResolver(companySchema),
   });
 
-  // Charger les infos du tenant si admin
+  const categoryForm = useForm<CategoryInput>({
+    resolver: zodResolver(categorySchema),
+    defaultValues: { color: '#6b7280' },
+  });
+  // Ajoutez cette ligne juste après pour "écouter" la couleur en temps réel
+const watchedColor = categoryForm.watch('color');
+
   useEffect(() => {
     if (isAdmin && user?.tenantId) {
       loadTenantInfo();
+      loadCategories();
     }
   }, [isAdmin, user]);
 
@@ -75,6 +102,18 @@ export default function ProfilePage() {
     }
   };
 
+  const loadCategories = async () => {
+    setIsLoadingCategories(true);
+    try {
+      const data = await tenantsApi.getRiskCategories();
+      setRiskCategories(data);
+    } catch (error) {
+      toast.error(getErrorMessage(error));
+    } finally {
+      setIsLoadingCategories(false);
+    }
+  };
+
   const onSubmitPassword = async (data: ChangePasswordInput) => {
     setIsChangingPassword(true);
     try {
@@ -90,12 +129,10 @@ export default function ProfilePage() {
   };
 
   const onSubmitCompany = async (data: CompanyInput) => {
-    // 1. Contrôle du format SIREN/SIRET (9 ou 14 chiffres)
-  // On ne valide que si le champ n'est pas vide (car il peut être NULL en BDD)
-  if (data.siren && !/^[0-9]{9}([0-9]{5})?$/.test(data.siren)) {
-    toast.error("Format invalide : le numéro SIREN/SIRET doit comporter 9 ou 14 chiffres.");
-    return; // On arrête l'exécution ici
-  }
+    if (data.siren && !/^[0-9]{9}([0-9]{5})?$/.test(data.siren)) {
+      toast.error("Format invalide : le numéro SIREN/SIRET doit comporter 9 ou 14 chiffres.");
+      return;
+    }
     setIsSavingCompany(true);
     try {
       await tenantsApi.updateMe(data);
@@ -106,6 +143,64 @@ export default function ProfilePage() {
       toast.error(getErrorMessage(error));
     } finally {
       setIsSavingCompany(false);
+    }
+  };
+
+  const openCreateCategory = () => {
+    setEditingCategory(null);
+    categoryForm.reset({ color: '#6b7280', name: '', label: '', icon: '' });
+    setShowCategoryForm(true);
+  };
+
+  const openEditCategory = (cat: RiskCategory) => {
+    setEditingCategory(cat);
+    categoryForm.reset({
+      name: cat.name,
+      label: cat.label,
+      color: cat.color,
+      icon: cat.icon ?? '',
+      position: cat.position,
+    });
+    setShowCategoryForm(true);
+  };
+
+  const onSubmitCategory = async (data: CategoryInput) => {
+    setIsSavingCategory(true);
+    try {
+      if (editingCategory) {
+        const updated = await tenantsApi.updateRiskCategory(editingCategory.id, {
+          label: data.label,
+          color: data.color,
+          icon: data.icon,
+          position: data.position,
+        });
+        setRiskCategories((prev) => prev.map((c) => (c.id === updated.id ? updated : c)));
+        toast.success('Catégorie mise à jour !');
+      } else {
+        const created = await tenantsApi.createRiskCategory(data);
+        setRiskCategories((prev) => [...prev, created].sort((a, b) => a.position - b.position));
+        toast.success('Catégorie créée !');
+      }
+      setShowCategoryForm(false);
+      setEditingCategory(null);
+    } catch (error) {
+      toast.error(getErrorMessage(error));
+    } finally {
+      setIsSavingCategory(false);
+    }
+  };
+
+  const handleDeleteCategory = async (cat: RiskCategory) => {
+    if (!confirm(`Supprimer la catégorie "${cat.label}" ? Cette action est irréversible.`)) return;
+    setDeletingCategoryId(cat.id);
+    try {
+      await tenantsApi.deleteRiskCategory(cat.id);
+      setRiskCategories((prev) => prev.filter((c) => c.id !== cat.id));
+      toast.success('Catégorie supprimée');
+    } catch (error) {
+      toast.error(getErrorMessage(error));
+    } finally {
+      setDeletingCategoryId(null);
     }
   };
 
@@ -226,6 +321,129 @@ export default function ProfilePage() {
                     <p className="font-medium text-gray-900">{value}</p>
                   </div>
                 ) : null)}
+              </div>
+            )}
+          </Card>
+        )}
+
+        {/* ✅ Catégories de risques — ADMIN uniquement */}
+        {isAdmin && (
+          <Card className="p-6">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-semibold">Catégories de risques</h2>
+              {!showCategoryForm && (
+                <Button variant="secondary" size="sm" onClick={openCreateCategory}>
+                  + Nouvelle catégorie
+                </Button>
+              )}
+            </div>
+
+            {/* Formulaire création / édition */}
+            {showCategoryForm && (
+              <form onSubmit={categoryForm.handleSubmit(onSubmitCategory)} className="mb-6 p-4 bg-gray-50 rounded-lg border border-gray-200 space-y-3">
+                <h3 className="font-medium text-gray-800">
+                  {editingCategory ? `Modifier "${editingCategory.label}"` : 'Nouvelle catégorie'}
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <Input
+                    label="Identifiant technique *"
+                    placeholder="ex: naturel, incendie"
+                    {...categoryForm.register('name')}
+                    error={categoryForm.formState.errors.name?.message}
+                    disabled={!!editingCategory} // non modifiable après création
+                  />
+                  <Input
+                    label="Libellé affiché *"
+                    placeholder="ex: Naturel, Incendie"
+                    {...categoryForm.register('label')}
+                    error={categoryForm.formState.errors.label?.message}
+                  />
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Couleur *
+                    </label>
+                    <div className="flex items-center gap-2">
+<input
+      type="color"
+      value={watchedColor || '#6b7280'} // Utilise la valeur actuelle du formulaire
+      onChange={(e) => categoryForm.setValue('color', e.target.value, { shouldValidate: true })}
+      className="h-9 w-14 cursor-pointer rounded border border-gray-300"
+    />
+    
+    {/* Zone de texte (Code Hex) */}
+    <Input
+      placeholder="#10B981"
+      {...categoryForm.register('color')} // Garde le register principal ici
+      error={categoryForm.formState.errors.color?.message}
+      className="flex-1"
+    />
+                    </div>
+                  </div>
+                  <Input
+                    label="Icône (copier un emoji uniquement)"
+                    placeholder="ex: 🌪️"
+                    {...categoryForm.register('icon')}
+                  />
+                </div>
+                <div className="flex gap-2 pt-1">
+                  <Button type="submit" isLoading={isSavingCategory} size="sm">
+                    {editingCategory ? 'Enregistrer' : 'Créer'}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => { setShowCategoryForm(false); setEditingCategory(null); }}
+                  >
+                    Annuler
+                  </Button>
+                </div>
+              </form>
+            )}
+
+            {/* Liste des catégories */}
+            {isLoadingCategories ? (
+              <div className="flex justify-center py-4"><Spinner /></div>
+            ) : riskCategories.length === 0 ? (
+              <p className="text-gray-500 text-sm">Aucune catégorie définie. Créez-en une pour commencer.</p>
+            ) : (
+              <div className="space-y-2">
+                {riskCategories.map((cat) => (
+                  <div
+                    key={cat.id}
+                    className="flex items-center justify-between px-3 py-2 rounded-lg border border-gray-200 bg-white"
+                  >
+                    <div className="flex items-center gap-3">
+                      <span
+                        className="w-4 h-4 rounded-full flex-shrink-0 border border-white shadow-sm"
+                        style={{ backgroundColor: cat.color }}
+                      />
+                      <span className="text-lg">{cat.icon ?? '—'}</span>
+                      <div>
+                        <p className="font-medium text-gray-900 text-sm">{cat.label}</p>
+                        <p className="text-xs text-gray-400 font-mono">{cat.name}</p>
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => openEditCategory(cat)}
+                      >
+                        Modifier
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-red-600 hover:text-red-700"
+                        isLoading={deletingCategoryId === cat.id}
+                        onClick={() => handleDeleteCategory(cat)}
+                      >
+                        Supprimer
+                      </Button>
+                    </div>
+                  </div>
+                ))}
               </div>
             )}
           </Card>

@@ -10,6 +10,7 @@ import * as bcrypt from 'bcrypt';
 import { UserRole } from '../users/entities/user-role.enum';
 import { Subscription } from '../subscriptions/entities/subscription.entity';
 import { AuthService } from '../auth/auth.service';
+import { RiskCategoriesService } from '../risk-categories/risk-categories.service';
 
 @Injectable()
 export class TenantsService {
@@ -21,10 +22,11 @@ export class TenantsService {
     @InjectRepository(Offer)
     private readonly offerRepository: Repository<Offer>,
     private readonly auditService: AuditService,
-    @InjectRepository(Subscription)  // 👈 NOUVEAU
+    @InjectRepository(Subscription)
     private subscriptionRepository: Repository<Subscription>,
     @Inject(forwardRef(() => AuthService))
     private readonly authService: AuthService,
+    private readonly riskCategoriesService: RiskCategoriesService,
   ) {}
 
   async create(createTenantDto: CreateTenantDto, createdBy: string): Promise<Tenant> {
@@ -67,6 +69,9 @@ export class TenantsService {
     });
 
     const savedTenant = await this.tenantRepository.save(tenant);
+
+    // ✅ Créer les 6 catégories de risques par défaut pour ce nouveau tenant
+    await this.riskCategoriesService.createDefaultCategories(savedTenant.id);
 
     // Calculer le nombre de jours souscrits
     const daysSubscribed = Math.ceil(

@@ -16,28 +16,34 @@ import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles, CurrentUser } from '../common/decorators/current-user.decorator';
 import { User } from '../users/entities/user.entity';
 import { UserRole } from '../users/entities/user-role.enum';
+import { RiskCategoriesService } from '../risk-categories/risk-categories.service';
+import { CreateRiskCategoryDto, UpdateRiskCategoryDto } from '../risk-categories/dto/risk-categories.dto';
 
 @Controller('tenants')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class TenantsController {
-  constructor(private readonly tenantsService: TenantsService) {}
+  constructor(
+    private readonly tenantsService: TenantsService,
+    private readonly riskCategoriesService: RiskCategoriesService,
+  ) {}
+
+  // ──────────────────────────────────────────
+  // Routes fixes (AVANT les routes :id)
+  // ──────────────────────────────────────────
 
   @Get('subscription-status')
   @Roles(UserRole.ADMIN, UserRole.SUPERADMIN, UserRole.GESTIONNAIRE, UserRole.UTILISATEUR)
   async checkSubscriptionStatus(@CurrentUser() user: User) {
     const tenantId = user.tenantId;
     if (!tenantId) return { isValid: false, subscriptionEnd: null, daysRemaining: 0 };
-
     const tenant = await this.tenantsService.findOne(tenantId);
     const now = new Date();
     now.setHours(0, 0, 0, 0);
     const subscriptionEnd = tenant.subscriptionEnd ? new Date(tenant.subscriptionEnd) : null;
     if (!subscriptionEnd) return { isValid: false, subscriptionEnd: null, daysRemaining: 0 };
-
     subscriptionEnd.setHours(0, 0, 0, 0);
     const isValid = subscriptionEnd >= now;
     const daysRemaining = Math.ceil((subscriptionEnd.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-
     return { isValid, subscriptionEnd: tenant.subscriptionEnd, daysRemaining: isValid ? daysRemaining : 0 };
   }
 
@@ -59,16 +65,42 @@ export class TenantsController {
     };
   }
 
-  // ✅ NOUVELLE ROUTE : Mise à jour du profil entreprise par l'admin du tenant
   @Put('me')
   @Roles(UserRole.ADMIN)
-  async updateMyTenantInfo(
-    @CurrentUser() user: User,
-    @Body() updateDto: UpdateMyTenantDto,
-  ) {
+  async updateMyTenantInfo(@CurrentUser() user: User, @Body() updateDto: UpdateMyTenantDto) {
     if (!user.tenantId) throw new ForbiddenException('Aucun tenant associé à cet utilisateur');
     return this.tenantsService.update(user.tenantId, updateDto, user.id);
   }
+
+  // ✅ Routes risk-categories — AVANT @Get(':id')
+  @Get('risk-categories')
+  @Roles(UserRole.ADMIN, UserRole.GESTIONNAIRE, UserRole.UTILISATEUR)
+  getRiskCategories(@CurrentUser() user: User) {
+    if (!user.tenantId) throw new ForbiddenException('Tenant requis');
+    return this.riskCategoriesService.findAll(user.tenantId);
+  }
+
+  @Post('risk-categories')
+  @Roles(UserRole.ADMIN)
+  createRiskCategory(@Body() dto: CreateRiskCategoryDto, @CurrentUser() user: User) {
+    return this.riskCategoriesService.create(dto, user);
+  }
+
+  @Put('risk-categories/:catId')
+  @Roles(UserRole.ADMIN)
+  updateRiskCategory(@Param('catId') catId: string, @Body() dto: UpdateRiskCategoryDto, @CurrentUser() user: User) {
+    return this.riskCategoriesService.update(catId, dto, user);
+  }
+
+  @Delete('risk-categories/:catId')
+  @Roles(UserRole.ADMIN)
+  deleteRiskCategory(@Param('catId') catId: string, @CurrentUser() user: User) {
+    return this.riskCategoriesService.remove(catId, user);
+  }
+
+  // ──────────────────────────────────────────
+  // Routes collection
+  // ──────────────────────────────────────────
 
   @Post()
   @Roles(UserRole.SUPERADMIN)
@@ -82,11 +114,15 @@ export class TenantsController {
     return this.tenantsService.findAll();
   }
 
+  // ──────────────────────────────────────────
+  // Routes paramétrées :id — EN DERNIER
+  // ──────────────────────────────────────────
+
   @Get(':id')
   @Roles(UserRole.SUPERADMIN, UserRole.ADMIN)
   findOne(@Param('id') id: string, @CurrentUser() user: User) {
     if (user.role === UserRole.ADMIN && user.tenantId !== id) {
-      throw new ForbiddenException('Vous ne pouvez accéder qu\'à votre propre tenant');
+      throw new ForbiddenException("Vous ne pouvez accéder qu'à votre propre tenant");
     }
     return this.tenantsService.findOne(id);
   }

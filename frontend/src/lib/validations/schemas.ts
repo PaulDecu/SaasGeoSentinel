@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { UserRole, RiskCategory, RiskSeverity } from '@/types';
+import { UserRole, RiskSeverity } from '@/types';
 
 // Validation email
 export const emailSchema = z.string().email('Email invalide');
@@ -128,7 +128,7 @@ export const updateOfferSchema = z.object({
 export const createRiskSchema = z.object({
   title: z.string().min(3, 'Le titre doit contenir au moins 3 caractères').max(255),
   description: z.string().optional(),
-  category: z.nativeEnum(RiskCategory),
+  categoryId: z.string().uuid('Catégorie invalide'),
   severity: z.nativeEnum(RiskSeverity),
   latitude: z.number().min(-90).max(90),
   longitude: z.number().min(-180).max(180),

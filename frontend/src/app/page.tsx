@@ -184,7 +184,7 @@ export default function HomePage() {
                     className="input-tech"
                   />
                   <Input
-                    label="Email Professionnel"
+                    label="Email Professionnel de la personne qui administrera la plateforme"
                     type="email"
                     {...register('email')}
                     error={errors.email?.message}
@@ -207,7 +207,7 @@ export default function HomePage() {
 
       {/* --- FOOTER --- */}
       <footer className="py-12 border-t border-slate-100 bg-white text-center text-slate-400 text-sm font-medium">
-        <p>© {new Date().getFullYear()} GeoSentinel Platform. Sécurité & Technologie.</p>
+        <p>© {new Date().getFullYear()} GeoSentinel Platform. Sécurité & Technologie. Powered by GBA</p>
       </footer>
     </div>
   );

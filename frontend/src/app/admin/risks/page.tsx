@@ -7,8 +7,8 @@ import toast from 'react-hot-toast';
 import { Button, Input, Card, Spinner } from '@/components/ui';
 import { createRiskSchema, updateRiskSchema } from '@/lib/validations/schemas';
 import { useRequireAuth } from '@/lib/hooks/useAuth';
-import { UserRole, type Risk, RiskCategory, RiskSeverity } from '@/types';
-import { risksApi } from '@/lib/api/resources';
+import { UserRole, type Risk, RiskSeverity } from '@/types';
+import { risksApi, tenantsApi, type RiskCategory } from '@/lib/api/resources';
 import { getErrorMessage } from '@/lib/api/client';
 import { AuthLayout } from '@/components/layouts/AuthLayout';
 import { MapContainer, TileLayer, Marker, Popup, useMapEvents, useMap } from 'react-leaflet';
@@ -75,12 +75,13 @@ export default function AdminRisksPage() {
   const [editingRisk, setEditingRisk] = useState<Risk | null>(null);
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [severityFilter, setSeverityFilter] = useState<string>('all');
+  const [riskCategories, setRiskCategories] = useState<RiskCategory[]>([]);
 
   const isUser = user?.role === UserRole.UTILISATEUR;
 
   const riskForm = useForm({
     resolver: zodResolver(editingRisk ? updateRiskSchema : createRiskSchema),
-    defaultValues: { title: '', description: '', category: '', severity: '', latitude: 48.8566, longitude: 2.3522 },
+    defaultValues: { title: '', description: '', categoryId: '', severity: '', latitude: 48.8566, longitude: 2.3522 },
   });
 
   const watchedLat = useWatch({ control: riskForm.control, name: 'latitude' });
@@ -101,14 +102,17 @@ export default function AdminRisksPage() {
     );
   };
 
-  useEffect(() => { loadRisks(); }, []);
+  useEffect(() => {
+    loadRisks();
+    loadCategories();
+  }, []);
 
   useEffect(() => {
     if (editingRisk) {
       riskForm.reset({
         title: editingRisk.title,
         description: editingRisk.description || '',
-        category: editingRisk.category,
+        categoryId: editingRisk.categoryId,
         severity: editingRisk.severity,
         latitude: editingRisk.latitude,
         longitude: editingRisk.longitude,
@@ -123,6 +127,14 @@ export default function AdminRisksPage() {
       setRisks(data);
     } catch (error) { toast.error(getErrorMessage(error)); }
     finally { setIsLoading(false); }
+  };
+
+  const loadCategories = async () => {
+    try {
+      const data = await tenantsApi.getRiskCategories();
+      setRiskCategories(data);
+      console.log('categories:', data);
+    } catch { /* silencieux — pas bloquant */ }
   };
 
   // ✅ Chargement des risques entreprise (uniquement pour UTILISATEUR)
@@ -144,13 +156,13 @@ export default function AdminRisksPage() {
   };
 
   const filteredRisks = risks.filter(risk => {
-    const matchCategory = categoryFilter === 'all' || risk.category === categoryFilter;
+    const matchCategory = categoryFilter === 'all' || risk.categoryId === categoryFilter;
     const matchSeverity = severityFilter === 'all' || risk.severity === severityFilter;
     return matchCategory && matchSeverity;
   });
 
   const filteredCompanyRisks = companyRisks.filter(risk => {
-    const matchCategory = categoryFilter === 'all' || risk.category === categoryFilter;
+    const matchCategory = categoryFilter === 'all' || risk.categoryId === categoryFilter;
     const matchSeverity = severityFilter === 'all' || risk.severity === severityFilter;
     return matchCategory && matchSeverity;
   });
@@ -181,7 +193,7 @@ export default function AdminRisksPage() {
   const cancelEdit = () => {
     setEditingRisk(null);
     setShowRiskForm(false);
-    riskForm.reset({ title: '', description: '', category: '', severity: '', latitude: 48.8566, longitude: 2.3522 });
+    riskForm.reset({ title: '', description: '', categoryId: '', severity: '', latitude: 48.8566, longitude: 2.3522 });
   };
 
   const deleteRisk = async (id: string) => {
@@ -274,7 +286,7 @@ export default function AdminRisksPage() {
                         <div className="p-1">
                           <h4 className="font-bold border-b mb-1">{risk.title}</h4>
                           <p className="text-xs mb-1"><strong>Sévérité:</strong> {risk.severity}</p>
-                          <p className="text-xs mb-1"><strong>Catégorie:</strong> {risk.category}</p>
+                          <p className="text-xs mb-1"><strong>Catégorie:</strong> {risk.categoryLabel || risk.category}</p>
                           <p className="text-xs mb-1 text-gray-500">👤 {risk.creatorEmail || 'Inconnu'}</p>
                           {risk.description && <p className="text-xs mb-2">{risk.description.substring(0, 100)}...</p>}
                           {/* ✅ Bouton modifier uniquement si c'est son propre risque */}
@@ -328,9 +340,13 @@ export default function AdminRisksPage() {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Catégorie</label>
-                    <select {...riskForm.register('category')} className="block w-full rounded-lg border border-gray-300 px-3 py-2">
+                    <select {...riskForm.register('categoryId')} className="block w-full rounded-lg border border-gray-300 px-3 py-2">
                       <option value="">Sélectionner</option>
-                      {Object.values(RiskCategory).map((cat) => <option key={cat} value={cat}>{cat}</option>)}
+                      {riskCategories.map((cat) => (
+                        <option key={cat.id} value={cat.id}>
+                          {cat.icon ? `${cat.icon} ` : ''}{cat.label}
+                        </option>
+                      ))}
                     </select>
                   </div>
                   <div>
@@ -380,7 +396,11 @@ export default function AdminRisksPage() {
                   <label className="block text-sm font-medium text-gray-700 mb-1">Catégorie</label>
                   <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} className="block w-full rounded-lg border border-gray-300 px-3 py-2">
                     <option value="all">Toutes les catégories</option>
-                    {Object.values(RiskCategory).map((cat) => <option key={cat} value={cat}>{cat}</option>)}
+                    {riskCategories.map((cat) => (
+                      <option key={cat.id} value={cat.id}>
+                        {cat.icon ? `${cat.icon} ` : ''}{cat.label}
+                      </option>
+                    ))}
                   </select>
                 </div>
                 <div className="flex-1">
@@ -408,7 +428,16 @@ export default function AdminRisksPage() {
                         <div className="flex items-center gap-2 mb-2">
                           <h3 className="text-lg font-semibold">{risk.title}</h3>
                           <span className={`px-2 py-1 rounded text-xs font-medium ${getSeverityColor(risk.severity)}`}>{risk.severity}</span>
-                          <span className="px-2 py-1 bg-gray-100 text-gray-700 rounded text-xs font-medium">{risk.category}</span>
+                          {risk.categoryLabel && (
+                            <span className="flex items-center gap-1 px-2 py-1 bg-gray-100 text-gray-700 rounded text-xs font-medium">
+                              {risk.categoryIcon && <span>{risk.categoryIcon}</span>}
+                              <span
+                                className="w-2 h-2 rounded-full inline-block"
+                                style={{ backgroundColor: risk.categoryColor || '#6b7280' }}
+                              />
+                              {risk.categoryLabel}
+                            </span>
+                          )}
                         </div>
                         {risk.description && <p className="text-gray-600 text-sm mb-2">{risk.description}</p>}
                         <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-gray-500">

@@ -7,9 +7,10 @@ import {
   ManyToOne,
   JoinColumn,
 } from 'typeorm';
-import { RiskCategory, RiskSeverity } from './risk.enums';
 import { Tenant } from '../../tenants/entities/tenant.entity';
 import { User } from '../../users/entities/user.entity';
+import { TenantRiskCategory } from '../../tenants/entities/tenant-risk-category.entity';
+import { RiskSeverity } from './risk.enums';
 
 @Entity('risks')
 export class Risk {
@@ -22,20 +23,18 @@ export class Risk {
   @Column({ name: 'created_by', type: 'uuid' })
   createdByUserId: string;
 
+  @Column({ name: 'category_id', type: 'uuid' })
+  categoryId: string;
+
   @Column({ length: 255 })
   title: string;
 
   @Column({ type: 'text', nullable: true })
   description: string | null;
 
-  @Column({ type: 'enum', enum: RiskCategory })
-  category: RiskCategory;
-
   @Column({ type: 'enum', enum: RiskSeverity })
   severity: RiskSeverity;
 
-  // PostGIS geography stored as raw SQL
-  // Will be handled with raw queries for insert/update
   @Column({
     type: 'geography',
     spatialFeatureType: 'Point',
@@ -61,9 +60,18 @@ export class Risk {
   @JoinColumn({ name: 'created_by' })
   createdBy: User;
 
-  // Virtual properties for latitude/longitude
+  @ManyToOne(() => TenantRiskCategory, (cat) => cat.risks)
+  @JoinColumn({ name: 'category_id' })
+  riskCategory: TenantRiskCategory;
+
+  // Virtual properties
   latitude?: number;
   longitude?: number;
   distance?: number;
-  creatorEmail?: string; // <-- Ajout de cette ligne
+  creatorEmail?: string;
+  // ✅ Dénormalisé pour éviter les jointures dans les réponses API
+  category?: string;  // name de la catégorie (ex: 'naturel')
+  categoryLabel?: string; // label de la catégorie (ex: 'Naturel')
+  categoryColor?: string;
+  categoryIcon?: string;
 }

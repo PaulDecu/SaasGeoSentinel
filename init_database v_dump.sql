@@ -949,3 +949,84 @@ GRANT ALL ON SCHEMA public TO PUBLIC;
 
 INSERT INTO users (email, password_hash, role, tenant_id) VALUES
     ('admin@platform.local', '$2a$10$rH8qGJKVXLKZC7vJ7gKZhexBKdXvXnXQJJXvqfLJQhHnVLGqNP7.m', 'superadmin', NULL);
+
+
+-- MIGRATION POUR AJOUTER LES CATEGORIES DE RISQUES LIEES A UN TENANT
+-- ============================================================
+-- Migration : Catégories de risques par tenant
+-- ============================================================
+
+-- 1. Créer la table tenant_risk_categories
+CREATE TABLE IF NOT EXISTS public.tenant_risk_categories (
+    id uuid NOT NULL DEFAULT uuid_generate_v4(),
+    tenant_id uuid NOT NULL,
+    name character varying(100) NOT NULL,   -- clé technique ex: 'naturel'
+    label character varying(150) NOT NULL,  -- libellé affiché ex: 'Naturel'
+    color character varying(7) NOT NULL DEFAULT '#6b7280',  -- couleur hex
+    icon character varying(50),             -- emoji ou nom d'icône
+    position integer NOT NULL DEFAULT 0,    -- ordre d'affichage
+    created_at timestamp without time zone NOT NULL DEFAULT now(),
+    updated_at timestamp without time zone NOT NULL DEFAULT now(),
+    CONSTRAINT "PK_tenant_risk_categories" PRIMARY KEY (id),
+    CONSTRAINT "FK_tenant_risk_categories_tenant" FOREIGN KEY (tenant_id)
+        REFERENCES public.tenants (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE CASCADE,
+    CONSTRAINT "UQ_tenant_risk_category_name" UNIQUE (tenant_id, name)
+);
+
+CREATE INDEX IF NOT EXISTS "IDX_tenant_risk_categories_tenant_id"
+    ON public.tenant_risk_categories (tenant_id);
+
+-- 2. Ajouter colonne category_id sur risks (FK vers tenant_risk_categories)
+--    On l'ajoute nullable d'abord pour la migration des données existantes
+ALTER TABLE public.risks
+    ADD COLUMN IF NOT EXISTS category_id uuid;
+
+-- 3. Pour chaque tenant existant : créer les catégories par défaut
+--    puis mettre à jour les risques existants avec la FK correspondante
+
+-- Insérer les 6 catégories par défaut pour chaque tenant existant
+INSERT INTO public.tenant_risk_categories (tenant_id, name, label, color, icon, position)
+SELECT
+    t.id,
+    c.name,
+    c.label,
+    c.color,
+    c.icon,
+    c.position
+FROM public.tenants t
+CROSS JOIN (VALUES
+    ('naturel',       'Naturel',       '#10B981', '🌪️', 0),
+    ('industriel',    'Industriel',    '#F59E0B', '🏭', 1),
+    ('sanitaire',     'Sanitaire',     '#EF4444', '🏥', 2),
+    ('technologique', 'Technologique', '#3B82F6', '⚙️', 3),
+    ('social',        'Social',        '#8B5CF6', '👥', 4),
+    ('autre',         'Autre',         '#6B7280', '❓', 5)
+) AS c(name, label, color, icon, position)
+ON CONFLICT ON CONSTRAINT "UQ_tenant_risk_category_name" DO NOTHING;
+
+-- 4. Mettre à jour la FK sur les risques existants
+UPDATE public.risks r
+SET category_id = trc.id
+FROM public.tenant_risk_categories trc
+WHERE trc.tenant_id = r.tenant_id
+  AND trc.name = r.category::text;
+
+-- 5. Rendre category_id NOT NULL maintenant que les données sont migrées
+ALTER TABLE public.risks
+    ALTER COLUMN category_id SET NOT NULL;
+
+-- 6. Ajouter la contrainte FK
+ALTER TABLE public.risks
+    ADD CONSTRAINT "FK_risks_category" FOREIGN KEY (category_id)
+        REFERENCES public.tenant_risk_categories (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE RESTRICT; -- Interdit suppression si risques existent
+
+-- 7. Supprimer l'ancienne colonne category (enum)
+--    ⚠️ À exécuter seulement après validation que category_id est bien renseigné
+ALTER TABLE public.risks DROP COLUMN IF EXISTS category;
+
+-- 8. Supprimer l'enum (optionnel, peut être gardé pour compatibilité)
+-- DROP TYPE IF EXISTS risks_category_enum;

@@ -8,12 +8,15 @@ import { Offer } from '../offers/entities/offer.entity';
 import { AuditModule } from '../audit/audit.module';
 import { Subscription } from '../subscriptions/entities/subscription.entity';
 import { AuthModule } from '../auth/auth.module';
+import { RiskCategoriesModule } from '../risk-categories/risk-categories.module';
+
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([Tenant, User, Offer, Subscription]),
     AuditModule,
     forwardRef(() => AuthModule),
+    RiskCategoriesModule,
   ],
   controllers: [TenantsController],
   providers: [TenantsService],

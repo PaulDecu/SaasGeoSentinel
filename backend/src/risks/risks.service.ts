@@ -31,12 +31,12 @@ export class RisksService {
 
     const result = await this.riskRepository.query(
       `INSERT INTO risks (
-        id, tenant_id, created_by, title, description, category, severity, location, metadata
+        id, tenant_id, created_by, category_id, title, description, severity, location, metadata
       ) VALUES (
         gen_random_uuid(), $1, $2, $3, $4, $5, $6,
         ST_SetSRID(ST_MakePoint($7, $8), 4326)::GEOGRAPHY, $9
       ) RETURNING id`,
-      [tenantId, user.id, riskData.title, riskData.description || null, riskData.category, riskData.severity, longitude, latitude, JSON.stringify(riskData.metadata || {})],
+      [tenantId, user.id, riskData.categoryId, riskData.title, riskData.description || null, riskData.severity, longitude, latitude, JSON.stringify(riskData.metadata || {})],
     );
 
     const riskId = result[0].id;
@@ -45,7 +45,7 @@ export class RisksService {
       action: 'RISK_CREATED',
       userId: user.id,
       tenantId,
-      details: { riskId, title: riskData.title, category: riskData.category, severity: riskData.severity },
+      details: { riskId, title: riskData.title, categoryId: riskData.categoryId, severity: riskData.severity },
     });
 
     return this.findOne(riskId, user);
@@ -74,10 +74,13 @@ export class RisksService {
   async findOne(id: string, user: User): Promise<Risk> {
     const risks = await this.riskRepository.query(
       `SELECT r.*, u.email AS creator_email,
+        trc.name AS category, trc.label AS category_label,
+        trc.color AS category_color, trc.icon AS category_icon,
         ST_Y(r.location::geometry) AS latitude,
         ST_X(r.location::geometry) AS longitude
       FROM risks r
       LEFT JOIN users u ON r.created_by = u.id
+      LEFT JOIN tenant_risk_categories trc ON r.category_id = trc.id
       WHERE r.id = $1`,
       [id],
     );
@@ -107,7 +110,7 @@ export class RisksService {
 
     if (updateRiskDto.title !== undefined) { updates.push(`title = $${paramIndex++}`); values.push(updateRiskDto.title); }
     if (updateRiskDto.description !== undefined) { updates.push(`description = $${paramIndex++}`); values.push(updateRiskDto.description); }
-    if (updateRiskDto.category !== undefined) { updates.push(`category = $${paramIndex++}`); values.push(updateRiskDto.category); }
+    if (updateRiskDto.categoryId !== undefined) { updates.push(`category_id = $${paramIndex++}`); values.push(updateRiskDto.categoryId); }
     if (updateRiskDto.severity !== undefined) { updates.push(`severity = $${paramIndex++}`); values.push(updateRiskDto.severity); }
     if (updateRiskDto.latitude !== undefined && updateRiskDto.longitude !== undefined) {
       updates.push(`location = ST_SetSRID(ST_MakePoint($${paramIndex++}, $${paramIndex++}), 4326)::GEOGRAPHY`);
@@ -185,11 +188,14 @@ export class RisksService {
   private async getNearbyRisksByTenant(lat: number, lng: number, radiusMeters: number, limit: number, tenantId: string): Promise<Risk[]> {
     const risks = await this.riskRepository.query(
       `SELECT r.*, u.email AS creator_email,
+        trc.name AS category, trc.label AS category_label,
+        trc.color AS category_color, trc.icon AS category_icon,
         ST_Y(r.location::geometry) AS latitude,
         ST_X(r.location::geometry) AS longitude,
         ST_Distance(r.location, ST_SetSRID(ST_MakePoint($1, $2), 4326)::GEOGRAPHY) AS distance
       FROM risks r
       LEFT JOIN users u ON r.created_by = u.id
+      LEFT JOIN tenant_risk_categories trc ON r.category_id = trc.id
       WHERE r.tenant_id = $3
         AND ST_DWithin(r.location, ST_SetSRID(ST_MakePoint($1, $2), 4326)::GEOGRAPHY, $4)
       ORDER BY distance ASC LIMIT $5`,
@@ -201,11 +207,14 @@ export class RisksService {
   private async getNearbyRisks(lat: number, lng: number, radiusMeters: number, limit: number): Promise<Risk[]> {
     const risks = await this.riskRepository.query(
       `SELECT r.*, u.email AS creator_email,
+        trc.name AS category, trc.label AS category_label,
+        trc.color AS category_color, trc.icon AS category_icon,
         ST_Y(r.location::geometry) AS latitude,
         ST_X(r.location::geometry) AS longitude,
         ST_Distance(r.location, ST_SetSRID(ST_MakePoint($1, $2), 4326)::GEOGRAPHY) AS distance
       FROM risks r
       LEFT JOIN users u ON r.created_by = u.id
+      LEFT JOIN tenant_risk_categories trc ON r.category_id = trc.id
       WHERE ST_DWithin(r.location, ST_SetSRID(ST_MakePoint($1, $2), 4326)::GEOGRAPHY, $3)
       ORDER BY distance ASC LIMIT $4`,
       [lng, lat, radiusMeters, limit],
@@ -216,10 +225,13 @@ export class RisksService {
   private async getRisksByTenant(tenantId: string): Promise<Risk[]> {
     const risks = await this.riskRepository.query(
       `SELECT r.*, u.email AS creator_email,
+        trc.name AS category, trc.label AS category_label,
+        trc.color AS category_color, trc.icon AS category_icon,
         ST_Y(r.location::geometry) AS latitude,
         ST_X(r.location::geometry) AS longitude
       FROM risks r
       LEFT JOIN users u ON r.created_by = u.id
+      LEFT JOIN tenant_risk_categories trc ON r.category_id = trc.id
       WHERE r.tenant_id = $1
       ORDER BY r.created_at DESC`,
       [tenantId],
@@ -231,10 +243,13 @@ export class RisksService {
   private async getRisksByCreator(tenantId: string, userId: string): Promise<Risk[]> {
     const risks = await this.riskRepository.query(
       `SELECT r.*, u.email AS creator_email,
+        trc.name AS category, trc.label AS category_label,
+        trc.color AS category_color, trc.icon AS category_icon,
         ST_Y(r.location::geometry) AS latitude,
         ST_X(r.location::geometry) AS longitude
       FROM risks r
       LEFT JOIN users u ON r.created_by = u.id
+      LEFT JOIN tenant_risk_categories trc ON r.category_id = trc.id
       WHERE r.tenant_id = $1 AND r.created_by = $2
       ORDER BY r.created_at DESC`,
       [tenantId, userId],
@@ -245,10 +260,13 @@ export class RisksService {
   private async getAllRisksWithCoordinates(): Promise<Risk[]> {
     const risks = await this.riskRepository.query(
       `SELECT r.*, u.email AS creator_email,
+        trc.name AS category, trc.label AS category_label,
+        trc.color AS category_color, trc.icon AS category_icon,
         ST_Y(r.location::geometry) AS latitude,
         ST_X(r.location::geometry) AS longitude
       FROM risks r
       LEFT JOIN users u ON r.created_by = u.id
+      LEFT JOIN tenant_risk_categories trc ON r.category_id = trc.id
       ORDER BY r.created_at DESC`,
     );
     return risks.map((r: any) => this.mapRiskFromQuery(r));
@@ -260,9 +278,13 @@ export class RisksService {
       tenantId: row.tenant_id,
       createdByUserId: row.created_by,
       creatorEmail: row.creator_email,
+      categoryId: row.category_id,
+      category: row.category,           // name ex: 'naturel'
+      categoryLabel: row.category_label, // label ex: 'Naturel'
+      categoryColor: row.category_color,
+      categoryIcon: row.category_icon,
       title: row.title,
       description: row.description,
-      category: row.category,
       severity: row.severity,
       location: row.location,
       metadata: row.metadata,

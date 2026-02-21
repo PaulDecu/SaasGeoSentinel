@@ -5,12 +5,13 @@ import {
   IsNumber,
   IsOptional,
   IsObject,
+  IsUUID,
   Min,
   Max,
   MaxLength,
   MinLength,
 } from 'class-validator';
-import { RiskCategory, RiskSeverity } from '../entities/risk.enums';
+import { RiskSeverity } from '../entities/risk.enums';
 import { Type } from 'class-transformer';
 
 export class CreateRiskDto {
@@ -24,9 +25,9 @@ export class CreateRiskDto {
   @IsOptional()
   description?: string;
 
-  @IsEnum(RiskCategory)
+  @IsUUID()
   @IsNotEmpty()
-  category: RiskCategory;
+  categoryId: string;
 
   @IsEnum(RiskSeverity)
   @IsNotEmpty()
@@ -58,9 +59,9 @@ export class UpdateRiskDto {
   @IsOptional()
   description?: string;
 
-  @IsEnum(RiskCategory)
+  @IsUUID()
   @IsOptional()
-  category?: RiskCategory;
+  categoryId?: string;
 
   @IsEnum(RiskSeverity)
   @IsOptional()

@@ -45,15 +45,7 @@ export interface Offer {
   updatedAt: string;
 }
 
-// Types risque
-export enum RiskCategory {
-  NATUREL = 'naturel',
-  INDUSTRIEL = 'industriel',
-  SANITAIRE = 'sanitaire',
-  TECHNOLOGIQUE = 'technologique',
-  SOCIAL = 'social',
-  AUTRE = 'autre',
-}
+// Types risque — RiskCategory enum supprimé, remplacé par catégories dynamiques par tenant
 
 export enum RiskSeverity {
   FAIBLE = 'faible',
@@ -66,10 +58,15 @@ export interface Risk {
   id: string;
   tenantId: string;
   createdByUserId: string;
-creatorEmail?: string; // <-- Ajout de cette propriété
+  creatorEmail?: string;
   title: string;
   description: string | null;
-  category: RiskCategory;
+  // ✅ category remplacé par categoryId (FK) + champs dénormalisés
+  categoryId: string;
+  category?: string;        // name technique ex: 'naturel' (dénormalisé)
+  categoryLabel?: string;   // libellé affiché ex: 'Naturel'
+  categoryColor?: string;   // couleur hex ex: '#10B981'
+  categoryIcon?: string;    // emoji ex: '🌪️'
   severity: RiskSeverity;
   latitude: number;
   longitude: number;

@@ -28,6 +28,7 @@ import { PasswordResetToken } from './auth/entities/password-reset-token.entity'
 import { AuditLog } from './audit/entities/audit-log.entity';
 import { SystemSetting } from './system-settings/entities/system-settings.entity'; // ✅ AJOUTÉ
 import { Subscription } from './subscriptions/entities/subscription.entity'; // ✅ AJOUTER CET IMPORT
+import { TenantRiskCategory } from './tenants/entities/tenant-risk-category.entity';
 
 @Module({
   imports: [
@@ -55,6 +56,7 @@ import { Subscription } from './subscriptions/entities/subscription.entity'; // 
           AuditLog,
           SystemSetting, // ✅ AJOUTÉ
           Subscription,
+          TenantRiskCategory,
         ],
         synchronize: false, // IMPORTANT: Toujours false en production
         logging: config.get('NODE_ENV') === 'development',
