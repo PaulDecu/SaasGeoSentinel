@@ -1,5 +1,10 @@
 {
   "pages": {
+    "/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/page.js"
+    ],
     "/layout": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
@@ -11,20 +16,20 @@
       "static/chunks/main-app.js",
       "static/chunks/app/login/page.js"
     ],
+    "/domaines/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/domaines/page.js"
+    ],
     "/dashboard/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
       "static/chunks/app/dashboard/page.js"
     ],
-    "/me/page": [
+    "/admin/system-settings/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/me/page.js"
-    ],
-    "/my-offer/page": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/my-offer/page.js"
+      "static/chunks/app/admin/system-settings/page.js"
     ],
     "/admin/risks/page": [
       "static/chunks/webpack.js",
@@ -32,55 +37,10 @@
       "static/css/app/admin/risks/page.css",
       "static/chunks/app/admin/risks/page.js"
     ],
-    "/dashboard/my-subscriptions/payment-result/page": [
+    "/me/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/dashboard/my-subscriptions/payment-result/page.js"
-    ],
-    "/page": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/page.js"
-    ],
-    "/forgot-password/page": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/forgot-password/page.js"
-    ],
-    "/reset-password/page": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/reset-password/page.js"
-    ],
-    "/admin/system-settings/page": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/admin/system-settings/page.js"
-    ],
-    "/admin/platform/page": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/admin/platform/page.js"
-    ],
-    "/admin/teams/page": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/admin/teams/page.js"
-    ],
-    "/dashboard/my-subscriptions/page": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/dashboard/my-subscriptions/page.js"
-    ],
-    "/securite/page": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/securite/page.js"
-    ],
-    "/domaines/page": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/domaines/page.js"
+      "static/chunks/app/me/page.js"
     ]
   }
 }

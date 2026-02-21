@@ -157,7 +157,7 @@ export default function HomePage() {
             <div className="grid md:grid-cols-2">
               <div className="p-12 md:p-16 bg-slate-50 border-r border-slate-100">
                 <h3 className="text-4xl font-black tracking-tighter text-slate-950 mb-6">
-                  Démarrez votre évaluation.
+                  Démarrez votre évaluation gratuite.
                 </h3>
                 <p className="text-slate-600 font-light mb-8">
                   Rejoignez les leaders de la sécurité qui font confiance à GeoSentinel pour protéger leurs actifs les plus précieux.

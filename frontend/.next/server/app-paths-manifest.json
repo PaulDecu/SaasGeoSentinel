@@ -1,9 +1,8 @@
 {
-  "/page": "app/page.js",
-  "/domaines/page": "app/domaines/page.js",
-  "/securite/page": "app/securite/page.js",
+  "/dashboard/page": "app/dashboard/page.js",
   "/login/page": "app/login/page.js",
-  "/admin/teams/page": "app/admin/teams/page.js",
-  "/my-offer/page": "app/my-offer/page.js",
-  "/dashboard/page": "app/dashboard/page.js"
+  "/admin/risks/page": "app/admin/risks/page.js",
+  "/me/page": "app/me/page.js",
+  "/domaines/page": "app/domaines/page.js",
+  "/admin/system-settings/page": "app/admin/system-settings/page.js"
 }

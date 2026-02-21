@@ -35,6 +35,7 @@ export class AuthController {
   async login(@Body() loginDto: LoginDto, @Res({ passthrough: true }) res: Response) {
     const result = await this.authService.login(loginDto);
 
+    // ✅ Cookie httpOnly pour les clients web
     res.cookie('refreshToken', result.refreshToken, {
       httpOnly: true,
       secure: COOKIE_SECURE,
@@ -46,6 +47,9 @@ export class AuthController {
       user: result.user,
       accessToken: result.accessToken,
       expiresIn: result.expiresIn,
+      // ✅ Retourné aussi dans le body pour les clients mobiles
+      // (les cookies httpOnly ne sont pas accessibles depuis React Native)
+      refreshToken: result.refreshToken,
     };
   }
 
@@ -63,8 +67,13 @@ export class AuthController {
 
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
-  async refresh(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
-    const refreshToken = req.cookies?.refreshToken;
+  async refresh(
+    @Body() body: RefreshTokenDto,
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    // ✅ Accepte le refreshToken depuis le body (mobile) OU le cookie (web)
+    const refreshToken = body?.refreshToken || req.cookies?.refreshToken;
 
     if (!refreshToken) {
       throw new Error('Refresh token manquant');
@@ -72,6 +81,7 @@ export class AuthController {
 
     const result = await this.authService.refresh(refreshToken);
 
+    // ✅ Mettre à jour le cookie pour les clients web
     res.cookie('refreshToken', result.refreshToken, {
       httpOnly: true,
       secure: COOKIE_SECURE,
@@ -82,6 +92,8 @@ export class AuthController {
     return {
       accessToken: result.accessToken,
       expiresIn: result.expiresIn,
+      // ✅ Retourné dans le body pour les clients mobiles
+      refreshToken: result.refreshToken,
     };
   }
 
